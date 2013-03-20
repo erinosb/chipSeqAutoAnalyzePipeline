@@ -1,1 +1,11 @@
-changed text here 
+130205 -- last date I worked on the autoAnalyzeChipseq_EON_v3.sh code. 
+
+130320 -- Added some notes on things I want to change/update to make 
+this pipeline really powerful:
+  --> Add bam -> bed
+  --> Add better output.  Fork output to stdout and to a comprehensive 
+.LOG file 
+  --> Add R code
+  --> Add java-genomics-toolkit commands as needed
+
+ 
