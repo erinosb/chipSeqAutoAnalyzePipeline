@@ -144,6 +144,7 @@ do
     bamfile=${i}.bam
     bam_sorted=${i}_sorted
     bam_sort_file=${i}_sorted.bam
+    bed_file=${i}.bed
     processlog=${i}_process.log
     btlog=${i}_bt.log
     
@@ -187,16 +188,26 @@ do
     #bsub -q week -o log-sort -n 8 samtools sort $bamfile $bam_sorted
     #bsub -q week -o log-sort -n 8 R span"[hosts=1]" -x samtools sort EO23.bam EO23_sorted
     
+    #bedtools from .sam file
+    echo "   Bedtools:  converting $bam_sort_file to $bed_file using command:"
+    echo "     bedtools bamTobed -i $bam_sort_file > $bed_file"
+    bedtools bamTobed -i $bam_sort_file > $bed_file
     #bedtools wig file
-    echo "  Bedtools:  Converting $bam_sort_file to ${i}.wig.gz using command:"
-    echo "    bedtools genomecov -ibam $bam_sort_file -g /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt -bg -trackline -trackopts 'name=$i' | gzip > ${i}.bedgraph.gz"
-    bedtools genomecov -ibam $bam_sort_file -g /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt -bg -trackline -trackopts 'name=$i' | gzip > ${i}.bedgraph.gz
+    echo "  R: writing a .R file to convert .bam --> 
     
     printf "\n"
     
 #    bsub -q week -n 8 -o closest_EO33.LOG "bedtools closest -a EO37_overIgG_peaks.bed -b /proj/dllab/Erin/ce10/from_ucsc/annotation_files/WS220_refseq_ucsc_120323.gtf > EO37_closest.bed"
 done
 
+
+################
+Notes:
+
+#branching to output and log file
+ls -l 2>&1 | tee file.txt
+
+#zinba commands
 library(zinba)
 basealigncount(
   inputfile="EO37_overIgG.bed",
@@ -215,6 +226,7 @@ basealigncount(
   twoBitFile="/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit"
 )
 
+#Java outputs
 /proj/dllab/Erin/executables/java-genomics-toolkit/toolRunner.sh wigmath.Subtract -f -m 
 EO37.wig -o EO37_over_27 -s mEO27.wig>
 
