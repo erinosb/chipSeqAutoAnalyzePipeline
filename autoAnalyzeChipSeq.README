@@ -2,10 +2,19 @@
 
 130320 -- Added some notes on things I want to change/update to make 
 this pipeline really powerful:
-  --> Add bam -> bed
+  X --> Add bam -> bed
   --> Add better output.  Fork output to stdout and to a comprehensive 
 .LOG file 
-  --> Add R code
+  X --> Add R code
   --> Add java-genomics-toolkit commands as needed
 
+130325
+ --> Want to improve output. Fork to stdout and a comprehensive .LOG file.
+ --> Want to include some error checks.
+        -- Standard file
+        -- Output statistics in a comprehensive file
+ --> Start another shell command program to combine all the samples of an experiment into one using java-genomics-toolkit commands.
+ X --> Bug fix -- reset the zinba file
+ X --> Bug  fix -- fix the fastqc command
+ 
  

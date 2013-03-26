@@ -1,4 +1,4 @@
-#! /bin/bash/
+#! /bin/sh/
 
 ################################################
 #unmultiplex_EON_v1.sh
@@ -32,6 +32,7 @@
 #   January 5, 2013
 #
 #BUGS
+#   -- check whether certain modules have been loaded;
 #
 #
 #TO FIX
@@ -42,6 +43,7 @@
 #   Switch to accept both inputFile.txt and inputFile.fastq and to croak and die if neither suffixes are present
 #   Include help menu
 #   Include quality control
+#   Input extentions length for .wig files
 #
 #################################################
 
@@ -69,20 +71,27 @@ usage="
 #PRE-PROCESSING: Check errors, get filenames, set options
 #################
 
-echo "INITIATED autoAnalyzeChipseq_v2.sh using command: $0"
-printf "\n"
+
+DATE=$(date +"%Y-%m-%d_%H%M")
+
+echo $DATE
+dated_log=${DATE}.log
+
+
+echo "INITIATED autoAnalyzeChipseq_v2.sh using command: $0" | tee -a $dated_log
+printf "\n" | tee -a $dated_log
 
 if [ -z "$1" ]
   then
-    echo "ERROR: No inputFile supplied:"
-    echo "$usage"
+    echo "ERROR: No inputFile supplied:" 
+    echo "$usage" 
     exit
 fi
 
 if [ -z "$2" ]
   then
-    echo "ERROR: No barcodeIndexFile supplied:"
-    echo "$usage"
+    echo "ERROR: No barcodeIndexFile supplied:" 
+    echo "$usage" 
     exit
 fi
 
@@ -92,11 +101,12 @@ multi_root=${MULTI%.txt}
 #MULTI_root=${MULTI%.fastq} <-- This doesn't work. Change the program here to accept .fastq or .txt
 
 
-printf "\nSplitting seqfile:\n  "
-echo $multi
-printf "into multiple files based on barcodes in:\n  "
-echo $index
-printf "using command:\n\n  "
+printf "\nSplitting seqfile:\n  "  | tee -a $dated_log
+
+echo $multi | tee -a $dated_log
+printf "into multiple files based on barcodes in:\n  " | tee -a $dated_log
+echo $index | tee -a $dated_log
+printf "using command:\n\n  " | tee -a $dated_log
 
 
 
@@ -104,8 +114,8 @@ printf "using command:\n\n  "
 #Split the multiplexed file into multiple files based on barcoded indexes
 ######################
 
-#echo "cat $multi | fastx_barcode_splitter.pl --bcfile $index  --prefix "" --suffix ".fastq" --bol"
-#cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol 1>> split.log 2>&1
+echo "cat $multi | fastx_barcode_splitter.pl --bcfile $index  --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log
+#cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol 1 | tee -a $dated_log
 #%%%%%%%%%%%%
 #TURN THE CAT FUNCTION BACK ON!!!
 #%%%%%%%%%%%%%
@@ -124,6 +134,7 @@ do
     echo ${i}\.fastq
 done
 printf "\n"
+
 
 
 #For each sample,
@@ -145,55 +156,77 @@ do
     bam_sorted=${i}_sorted
     bam_sort_file=${i}_sorted.bam
     bed_file=${i}.bed
+    wig_file=${i}.wig
+    r_code=${i}_code.R
     processlog=${i}_process.log
     btlog=${i}_bt.log
+    
     
     echo "PROCESSING $i:"
     
     #fastx_trim:
     echo "  fastx_trimmer: Trimming barcode indexes from ${i}.fastq using command:"
     echo "    fastx_trimmer -f 9 -Q 33 -i ${i}.fastq -o $trimfile"
-    fastx_trimmer -f 9 -Q 33 -i ${i}.fastq -o $trimfile
+    #fastx_trimmer -f 9 -Q 33 -i ${i}.fastq -o $trimfile
     
+#>>filename 2>&1
+#Previously, I had written 1>>filename 2>&1
+#Try changing them to >>filename 2>&1 and see what happens
 
     #tagdust
     echo "  Tagdust: Removing adapter and primer sequences from $trimfile using command:"
     echo "    tagdust -q -f 0.001 -a ${i}_artifact.txt -o $cleanfile /proj/dllab/solexa-library-seqs.fasta $trimfile"
-    tagdust -q -f 0.001 -a ${i}_artifact.txt -o $cleanfile /proj/dllab/solexa-library-seqs.fasta $trimfile 1>> process.log 2>&1
+    #tagdust -q -f 0.001 -a ${i}_artifact.txt -o $cleanfile /proj/dllab/solexa-library-seqs.fasta $trimfile >> process.log 2>&1
     
     #fastqc_report
-    mkdir ${i}_fastqc_opd
-    echo "  Fastqc:  Quality control from ${i} analyzed using command:"
-    echo "    fastqc -o ${i}_fastqc_opd -f $trimfile"
-    fastqc -o ${i}_fastqc_opd -f $trimfile 1>> process.log 2>&1
-    #fastqc -o EO33_single_fastqc_opd -f fastq EO33_trim.fastq
+    #mkdir ${i}_fastqc_opd
+    mkdir EO27_fastqc_opd
+    echo "  Fastqc:  Quality control from ${i} analyzed using command:" 
+    echo "    fastqc -o ${i}_fastqc_opd $cleanfile" | tee -a tot.log
+    #fastqc -o ${i}_fastqc_opd $trimfile >> tot.log 2>&1
+    fastqc -o EO27_fastqc_opd EO27_clean.fastq 2>&1 | tee -a tot.log
     
     #bowtie
     echo "  Bowtie: Aligning $cleanfile to the genome using command:"
     echo "    bowtie -q --nomaqround --sam -m 4 -n 2 -e 70 -l 28 --best -p 8 --chunkmbs 1000 --seed=123 /proj/dllab/Erin/ce10/from_ucsc/seq/genome_bwa/ce10 $cleanfile $samfile"
-    bowtie -q --nomaqround --sam -m 4 -n 2 -e 70 -l 28 --best -p 8 --chunkmbs 1000 --seed=123 /proj/dllab/Erin/ce10/from_ucsc/seq/genome_bwa/ce10 $cleanfile $samfile 1>> bt.log 2>&1
+    #bowtie -q --nomaqround --sam -m 4 -n 2 -e 70 -l 28 --best -p 8 --chunkmbs 1000 --seed=123 /proj/dllab/Erin/ce10/from_ucsc/seq/genome_bwa/ce10 $cleanfile $samfile 1>> bt.log 2>&1
     #bsub -q week -n 8 -R span"[hosts=1]" -x -o bt.log bowtie -q --nomaqround --sam -m 4 -n 2 -e 70 -l 28 --best --chunkmbs 1000 -p 8 --seed=123 /proj/dllab/Erin/ce10/from_ucsc/seq/genome_bwa/ce10 EO23_clean.fastq EO23_output.sam
     #$cleanfile $samfile
     
-    #samtools compress & sort
+    #samtools compress 
     echo "  Samtools:  Compressing $samfile into $bamfile using command:"
     echo "    samtools view -bS -o $bamfile $samfile"
-    samtools view -bS -o $bamfile $samfile 1>> process.log 2>&1
+    #samtools view -bS -o $bamfile $samfile 1>> process.log 2>&1
     #bsub -q week -o log-samtools -n 8 -R span"[hosts=1]" -x samtools view -bS -o EO23.bam EO23_output.sam
 
     #samtools sort
     echo "  Samtools:  Sorting $bamfile into $bam_sort_file using command:"
     echo "    samtools sort $bamfile $bam_sorted"
-    samtools sort $bamfile $bam_sorted 1>> process.log 2>&1
+    #samtools sort $bamfile $bam_sorted 1>> process.log 2>&1
     #bsub -q week -o log-sort -n 8 samtools sort $bamfile $bam_sorted
     #bsub -q week -o log-sort -n 8 R span"[hosts=1]" -x samtools sort EO23.bam EO23_sorted
     
-    #bedtools from .sam file
+    #bedtools, convert .bam -> .bed
     echo "   Bedtools:  converting $bam_sort_file to $bed_file using command:"
     echo "     bedtools bamTobed -i $bam_sort_file > $bed_file"
-    bedtools bamTobed -i $bam_sort_file > $bed_file
-    #bedtools wig file
-    echo "  R: writing a .R file to convert .bam --> 
+    #bedtools bamtobed -i $bam_sort_file > $bed_file
+    
+    
+    #zinba .bed -> .wig
+    echo "  R: writing a .R file to convert $bed_file to $wig_file using Zinba(basealigncounts)."
+    
+    zinba_code="
+library(zinba)
+basealigncount(
+    inputfile=\"$bed_file\",
+    outputfile=\"$wig_file\",
+    extension=250,
+    filetype=\"bed\",
+    twoBitFile=\"/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit\"
+)"
+    echo "$zinba_code" > $r_code
+    echo "    /proj/.test/roach/FAIRE/bin/R --vanilla $r_code"
+    #/proj/.test/roach/FAIRE/bin/R --vanilla < EO37_code.R
     
     printf "\n"
     
@@ -202,40 +235,40 @@ done
 
 
 ################
-Notes:
+#Notes:
 
-#branching to output and log file
-ls -l 2>&1 | tee file.txt
-
-#zinba commands
-library(zinba)
-basealigncount(
-  inputfile="EO37_overIgG.bed",
-  outputfile="EO37.wig",
-  extension=250,
-  filetype="bed",
-  twoBitFile="/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit"
-)
-
-library(zinba)
-basealigncount(
-  inputfile="EO27_sorted.bed",
-  outputfile="EO27.wig",
-  extension=250,
-  filetype="bed",
-  twoBitFile="/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit"
-)
-
-#Java outputs
-/proj/dllab/Erin/executables/java-genomics-toolkit/toolRunner.sh wigmath.Subtract -f -m 
-EO37.wig -o EO37_over_27 -s mEO27.wig>
-
-
-#! /bin/bash/
-
-logfilename="logfile1.log"
-
-echo "$ wc EO38_mac3s.log..." > $logfilename
-wc EO38_mac3s.log >> $logfilename 2>&1
-echo "$ wc bt.log..." >> $logfilename
-wc bt.log >> $logfilename 2>&1
+##branching to output and log file
+#ls -l 2>&1 | tee file.txt
+#
+##zinba commands
+#library(zinba)
+#basealigncount(
+#  inputfile="EO37_overIgG.bed",
+#  outputfile="EO37.wig",
+#  extension=250,
+#  filetype="bed",
+#  twoBitFile="/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit"
+#)
+#
+#library(zinba)
+#basealigncount(
+#  inputfile="EO27_sorted.bed",
+#  outputfile="EO27.wig",
+#  extension=250,
+#  filetype="bed",
+#  twoBitFile="/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit"
+#)
+#
+##Java outputs
+#/proj/dllab/Erin/executables/java-genomics-toolkit/toolRunner.sh wigmath.Subtract -f -m 
+#EO37.wig -o EO37_over_27 -s mEO27.wig>
+#
+#
+##! /bin/bash/
+#
+#logfilename="logfile1.log"
+#
+#echo "$ wc EO38_mac3s.log..." > $logfilename
+#wc EO38_mac3s.log >> $logfilename 2>&1
+#echo "$ wc bt.log..." >> $logfilename
+#wc bt.log >> $logfilename 2>&1
