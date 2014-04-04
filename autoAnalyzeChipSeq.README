@@ -25,3 +25,17 @@ this pipeline really powerful:
  --> Include a cleap-up loop at the end
  --> Gather pertinent statistics in a report
  
+
+140404
+  --> moved _v4 to previous versions
+  --> started _v5.
+  --> updated to bowtie2
+  --> fixed fastqc
+  --> made modes
+      --> splitOnly
+      --> splitOff
+  --> made options
+      --> trimOff
+      --> extension
+      --> qualityOff
+ 

@@ -58,7 +58,7 @@
 #                   EO35	GATCTTG
 #                   EO36	TCAGGAC
 #                   EO37	ACAGTTG
-#   <input1.fastq>          This is an input .fastq file with 
+#   <input1.fastq>          This is an input .fastq file 
 #
 #OPTIONS
 #
@@ -158,7 +158,7 @@ ARGUMENTS
                    EO35	GATCTTG
                    EO36	TCAGGAC
                    EO37	ACAGTTG
-   <input1.fastq>          This is an input .fastq file with 
+   <input1.fastq>          This is an input .fastq file 
 
 OPTIONS
 
@@ -359,14 +359,16 @@ do
     printf "mkdir $opd" 2>&1 | tee -a $dated_log 
     mkdir $opd 2>&1 | tee -a $dated_log
 
-    #1) fastx_trim:
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  fastx_trimmer: Trimming barcode indexes from ${i}.fastq using command:" | tee -a $dated_log $commands_log
-    cmd1="fastx_trimmer -f 9 -Q 33 -i "$i".fastq -o "$opdpath$trimfile
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd1 2>&1 | tee -a $dated_log $commands_log
-    $cmd1  2>&1 | tee -a $dated_log
-    
+    if [[ $trimoff == "notcalled" ]]
+    then
+        #1) fastx_trim:
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.fastq using command:" | tee -a $dated_log $commands_log
+        cmd1="fastx_trimmer -f 9 -Q 33 -i "$i".fastq -o "$opdpath$trimfile
+        printf "\t" 2>&1 | tee -a $dated_log $commands_log
+        echo $cmd1 2>&1 | tee -a $dated_log $commands_log
+        $cmd1  2>&1 | tee -a $dated_log
+    fi
 
     #2) tagdust
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
@@ -377,17 +379,21 @@ do
     $cmd2  2>&1 | tee -a $dated_log
 
     #3) fastqc_report
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    printf "mkdir $opdpath3_${i}_fastqc_opd"  2>&1 | tee -a $dated_log $commands_log
+    if [[ $qualityoff == "notcalled" ]]
+    then
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        printf "mkdir $opdpath3_${i}_fastqc_opd"  2>&1 | tee -a $dated_log $commands_log
+        
+        mkdir $opdpath3_${i}_fastqc_opd  2>&1 | tee -a $dated_log $commands_log
+        
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
+        cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
+        printf "\t" 2>&1 | tee -a $dated_log $commands_log
+        echo $cmd3 2>&1 | tee -a $dated_log $commands_log
+        $cmd3  2>&1 | tee -a $dated_log
+    fi
     
-    mkdir $opdpath3_${i}_fastqc_opd  2>&1 | tee -a $dated_log $commands_log
-    
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
-    cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd3 2>&1 | tee -a $dated_log $commands_log
-    $cmd3  2>&1 | tee -a $dated_log
     
     #4) bowtie
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
