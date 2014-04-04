@@ -6,10 +6,47 @@
 #PROGRAM
 #   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
 #
+#
 #USAGE
-#   bash autoAnalyzeChipseq_v5.sh [options] <inputFile.txt> <barcodeIndexFile.txt> [options]
+#
+#   bash autoAnalyzeChipseq_v5.sh [options] <inputFile.txt> <barcodeIndexFile.txt>
 #   OR
-#   bash autoAnalyzeChipseq_v2.sh --splitOFF [options] <input1.fastq> input2.fastq   
+#   bash autoAnalyzeChipseq_v5.sh --splitOnly [options] <inputFile.txt> <barcodeIndexFile.txt>
+#   OR
+#   bash autoAnalyzeChipseq_v5.sh --splitOFF [options] <input1.fastq> input2.fastq
+#
+#
+#MODES
+#   There are three modes for use... --split mode (default), --splitOnly and --splitOff mode
+#   --split mode (default)      This mode uses as input a single homebrew multiplexed .txt file and
+#                               a single barcode index file. The pipeline then...
+#                                   0) splits the multiplexed file into single sample files by index
+    #                               1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+    #                               2) perform Tagdust using a solexa library of adapter and primer sequences.
+    #                               3) perform Fastqc to make a report of quality
+    #                               4) bowtie alignment
+    #                               5) compress .sam --> .bam using samtools view
+    #                               6) Sort .bam into _sorted.bam using samtools sort
+    #                               7) Convert _sorted.bam into .bed using bedtools
+    #                               8) Convert .bed into .wig using zinba.
+    #                               9) gzip .wig to .wig.gz
+    #
+#   --splitOnly                 This mode uses as input a single homebrew multiplexed .txt file and
+#                               a single barcode index file. The pipeline then...
+#                                   0) splits the multiplexed file into single sample files by index
+#
+#   --splitOff                  This mode uses as input a list of .txt or .fastq files and analyzes them...
+#                               a single barcode index file. The pipeline then...
+    #                               1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+    #                               2) perform Tagdust using a solexa library of adapter and primer sequences.
+    #                               3) perform Fastqc to make a report of quality
+    #                               4) bowtie alignment
+    #                               5) compress .sam --> .bam using samtools view
+    #                               6) Sort .bam into _sorted.bam using samtools sort
+    #                               7) Convert _sorted.bam into .bed using bedtools
+    #                               8) Convert .bed into .wig using zinba.
+    #                               9) gzip .wig to .wig.gz
+#
 #
 #ARGUMENTS
 #   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
@@ -25,29 +62,29 @@
 #
 #OPTIONS
 #
-#   --splitOff                  Don't split sequencefiles
-#   --qualityOff                Don't output quality score reports
+#   --splitOnly                 Runs in spligOnly mode. Suppresses analysis.
+#   --splitOff                  Runs in splitOff mode. Suppresses splitting sequencefiles
+#   --qualityOff                Suppresses quality score reports
 #   --extension <n>             Specify the length bp to extend reads in the .wig file
+#   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
 #   
 #AUTHOR
 #   Erin Osborne Nishimura
 #
 #DATE
-#   January 5, 2013
+#   April 4, 2014
 #
 #BUGS
 #   -- check whether certain modules have been loaded;
+#   -- Auto load all required modules
 #
 #
 #TO FIX
 #
-#
 #POTENTIAL FUTURE EXPANSION
 #   Accept batch multiplex sequencefiles
 #   Switch to accept both inputFile.txt and inputFile.fastq and to croak and die if neither suffixes are present
-#   Include help menu
-#   Include quality control
-#   Input extentions length for .wig files
+#   Change the optioning such that there are three different modes... --split, --analyze, and --cleanup
 #
 #################################################
 
@@ -66,14 +103,54 @@ twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            
 
 
 usage="
-    USAGE
-        bash autoAnalyzeChipseq_v2.sh [options] <inputFile.txt> <barcodeIndexFile.txt> 
-        OR
-        bash autoAnalyzeChipseq_v2.sh --splitOFF [options] <input1.fastq> inputf2.fastq         
-        
-    ARGUMENTS
-        <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
-        <barcodeIndexFile.txt>    This is a file listing the barcodes that are at the 5' end of each sequence string.  It should be in the format:
+PROGRAM
+   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
+
+
+USAGE
+
+   bash autoAnalyzeChipseq_v5.sh [options] <inputFile.txt> <barcodeIndexFile.txt>
+   OR
+   bash autoAnalyzeChipseq_v5.sh --splitOnly [options] <inputFile.txt> <barcodeIndexFile.txt>
+   OR
+   bash autoAnalyzeChipseq_v5.sh --splitOFF [options] <input1.fastq> input2.fastq
+
+
+MODES
+   There are three modes for use... --split mode (default), --splitOnly and --splitOff mode
+   --split mode (default)      This mode uses as input a single homebrew multiplexed .txt file and
+                               a single barcode index file. The pipeline then...
+                                   0) splits the multiplexed file into single sample files by index
+                                  1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+                                   2) perform Tagdust using a solexa library of adapter and primer sequences.
+                                   3) perform Fastqc to make a report of quality
+                                   4) bowtie alignment
+                                   5) compress .sam --> .bam using samtools view
+                                   6) Sort .bam into _sorted.bam using samtools sort
+                                   7) Convert _sorted.bam into .bed using bedtools
+                                   8) Convert .bed into .wig using zinba.
+                                   9) gzip .wig to .wig.gz
+    
+   --splitOnly                 This mode uses as input a single homebrew multiplexed .txt file and
+                               a single barcode index file. The pipeline then...
+                                   0) splits the multiplexed file into single sample files by index
+
+   --splitOff                  This mode uses as input a list of .txt or .fastq files and analyzes them...
+                               a single barcode index file. The pipeline then...
+                                   1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+                                   2) perform Tagdust using a solexa library of adapter and primer sequences.
+                                   3) perform Fastqc to make a report of quality
+                                   4) bowtie alignment
+                                   5) compress .sam --> .bam using samtools view
+                                   6) Sort .bam into _sorted.bam using samtools sort
+                                   7) Convert _sorted.bam into .bed using bedtools
+                                   8) Convert .bed into .wig using zinba.
+                                   9) gzip .wig to .wig.gz
+
+
+ARGUMENTS
+   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
+   <barcodeIndexFile.txt>    This is a file listing the barcodes that are at the 5' end of each sequence string.  It should be in the format:
 
                    #barcode file for the multiplexed sequences generated 11/11/12
                    EO33	AGATGGT
@@ -81,11 +158,15 @@ usage="
                    EO35	GATCTTG
                    EO36	TCAGGAC
                    EO37	ACAGTTG
+   <input1.fastq>          This is an input .fastq file with 
 
-    OPTIONS
-           --splitOff                  Don't split sequencefiles
-           --qualityOff                Don't output quality score reports
-           --extension <n>             Specify the length bp to extend reads in the .wig file"
+OPTIONS
+
+   --splitOnly                 Runs in spligOnly mode. Suppresses analysis.
+   --splitOff                  Runs in splitOff mode. Suppresses splitting sequencefiles
+   --qualityOff                Suppresses quality score reports
+   --extension <n>             Specify the length bp to extend reads in the .wig file
+   --trimOff                   Suppresses trimming six basepairs of multiplexing indices"
 
 
 
@@ -128,6 +209,8 @@ fi
 #Set options
 splitoff="notcalled"
 qualityoff="notcalled"
+splitonly="notcalled"
+trimoff="notcalled"
 list=$@
 
 #Get options
@@ -136,6 +219,12 @@ do
     case $n in
         --splitOff) shift;
         splitoff="called"
+        ;;
+        --splitOnly) shift;
+        splitonly="called"
+        ;;
+        --trimOff) shift;
+        trimoff="called"
         ;;
         --qualityOff) shift;
         qualityoff="called"
@@ -168,11 +257,16 @@ then
     #Split the multiplexed file into multiple files based on barcoded indexes
     ######################
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    echo "cat $multi | fastx_barcode_splitter.pl --bcfile $index  --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
-    #cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol 1 | tee -a $dated_log
-    #%%%%%%%%%%%%
-    #TURN THE CAT FUNCTION BACK ON!!!
-    #%%%%%%%%%%%%%
+    echo "cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+    cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol | tee -a $dated_log $commands_log
+
+    #####################
+    #Stop the program here if --splitOnly is called
+    #####################
+    if [[ $splitonly == "called" ]]
+    then
+        exit
+    fi
     
     
     
@@ -188,6 +282,16 @@ then
         echo ${i}\.fastq | tee -a $dated_log $commands_log
     done
     printf "\n" | tee -a $dated_log $commands_log
+fi
+
+
+##############################
+#If splitOnly is called, exit
+##############################
+
+if [[ $splitonly == "called" ]]
+then
+    exit
 fi
 
 #############################
@@ -276,7 +380,7 @@ do
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     printf "mkdir $opdpath3_${i}_fastqc_opd"  2>&1 | tee -a $dated_log $commands_log
     
-    mkdir $opdpath$3_{i}_fastqc_opd  2>&1 | tee -a $dated_log $commands_log
+    mkdir $opdpath3_${i}_fastqc_opd  2>&1 | tee -a $dated_log $commands_log
     
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
