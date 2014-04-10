@@ -367,6 +367,7 @@ do
         cmd1="fastx_trimmer -f 9 -Q 33 -i "$i".fastq -o "$opdpath$trimfile
         printf "\t" 2>&1 | tee -a $dated_log $commands_log
         echo $cmd1 2>&1 | tee -a $dated_log $commands_log
+        fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
         $cmd1  2>&1 | tee -a $dated_log
     fi
 
@@ -382,12 +383,14 @@ do
     if [[ $qualityoff == "notcalled" ]]
     then
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-        printf "mkdir $opdpath3_${i}_fastqc_opd"  2>&1 | tee -a $dated_log $commands_log
         
-        mkdir $opdpath3_${i}_fastqc_opd  2>&1 | tee -a $dated_log $commands_log
+        cmd_mkdir="mkdir "$opdpath"3_"${i}"_fastqc_opd"
+        echo $cmd_mkdir 2>&1 | tee -a $dated_log $commands_log
+        $cmd_mkdir  2>&1 | tee -a $dated_log
         
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
+        fastqc --version 2>&1 | tee -a $dated_log
         cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
         printf "\t" 2>&1 | tee -a $dated_log $commands_log
         echo $cmd3 2>&1 | tee -a $dated_log $commands_log
@@ -427,6 +430,7 @@ do
 
     printf "\t" 2>&1 | tee -a $dated_log $commands_log
     echo $cmd7 2>&1 | tee -a $dated_log $commands_log
+    bedtools --version 2>&1 | tee -a $dated_log 
     bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
     
     
@@ -448,12 +452,14 @@ basealigncount(
     cmd8="/proj/.test/roach/FAIRE/bin/R --vanilla < "$opdpath$r_code
     printf "\t" 2>&1 | tee -a $dated_log $commands_log
     printf "%s" $cmd8 2>&1 | tee -a $dated_log $commands_log
-    /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code
+    /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code 2>&1 | tee -a $dated_log
     printf "\n" | tee -a $dated_log
     
     #9) gzip .wig -> .wig.gz
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
+    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
     gzip $opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
 
     
