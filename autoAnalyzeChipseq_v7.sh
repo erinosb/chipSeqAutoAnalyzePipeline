@@ -118,7 +118,7 @@ USAGE
 
 MODES
    There are three modes for use... --split mode (default), --splitOnly and --splitOff mode
-   --split mode (default)      This mode uses as input a single homebrew multiplexed .txt file and
+   --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
                                a single barcode index file. The pipeline then...
                                    0) splits the multiplexed file into single sample files by index
                                   1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
@@ -135,7 +135,7 @@ MODES
                                a single barcode index file. The pipeline then...
                                    0) splits the multiplexed file into single sample files by index
 
-   --splitOff                  This mode uses as input a list of .txt or .fastq files and analyzes them...
+   --alignOnly                  This mode uses as input a list of .txt or .fastq files and analyzes them...
                                a single barcode index file. The pipeline then...
                                    1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
                                    2) perform Tagdust using a solexa library of adapter and primer sequences.
@@ -162,11 +162,12 @@ ARGUMENTS
 
 OPTIONS
 
-   --splitOnly                 Runs in spligOnly mode. Suppresses analysis.
-   --splitOff                  Runs in splitOff mode. Suppresses splitting sequencefiles
-   --qualityOff                Suppresses quality score reports
-   --extension <n>             Specify the length bp to extend reads in the .wig file
-   --trimOff                   Suppresses trimming six basepairs of multiplexing indices"
+   --splitNAlign                Runs this script in a split and align mode.
+   --splitOnly                  Runs this script in splitOnly mode. Suppresses alignment.
+   --alignOnly                  Runs in splitOff mode. Suppresses splitting sequencefiles
+   --qualityOff                 Suppresses quality score reports
+   --extension <n>              Specify the length bp to extend reads in the .wig file
+   --trimOff                    Suppresses trimming six basepairs of multiplexing indices"
 
 
 #################
@@ -206,7 +207,8 @@ if [ -z "$2" ]
 fi
 
 #Set options
-splitoff="notcalled"
+
+alignonly="notcalled"
 qualityoff="notcalled"
 splitonly="notcalled"
 trimoff="notcalled"
