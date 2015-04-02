@@ -93,9 +93,10 @@
 #####################   SET VARIABLES   ######################
 solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    #tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this
                                                                                   #variable to a path pointing to that file.
-bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #tophat needs to know where the bowtie2 index files are located. Set this varaible to the path and root
+bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
                                                                                   #name of those index files.
                                                                                   #Also, the genome sequence (a .fa file) also needs to be in that same directory.
+bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"                                                                                  
 extension=100                                                                         #zinba needs to know how long your reads are so that it can make a .wig file with the proper extension lengths
 twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            #zinba needs to know where the bowtie twobit files are located. I'm not sure whether zinba works with updated bowtie2
                                                                                   #files or whether you need the old bowtie twobit files.
@@ -243,9 +244,11 @@ do
         ;;
         --multi) shift;
         multi="$1"
+        shift
         ;;
         --bar) shift;
         bar="$1"
+        shift
         ;;
     esac
 done
@@ -307,7 +310,7 @@ fi
 if [[ $alignonly == "called" ]]
 then
     printf "\nRUNNING IN ALIGNONLY MODE\n"  | tee -a $dated_log $commands_log
-    printf "\nFILE TO SPLIT IS: $*" | tee -a $dated_log $commands_log
+    printf "\nFILES TO ALIGN ARE: $*" | tee -a $dated_log $commands_log
     
     if [ -z "$1" ]
     then
@@ -324,18 +327,18 @@ fi
 
 if [[ $alignonly == "notcalled" ]]
 then
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    echo $DATE | tee -a $dated_log $commands_log
-    printf "\nSplitting seqfile: $multi into multiple files based on barcodes in $bar\n"  | tee -a $dated_log $commands_log
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
+    printf "\nSplitting $multi into multiple files based on barcodes in $bar\n"  | tee -a $dated_log $commands_log
     more $bar | tee -a $dated_log $commands_log
-    printf "\nSplit command used:\n\n  " | tee -a $dated_log $commands_log
+
     
     
     
     ######################
     #Split the multiplexed file into multiple files based on barcoded indexes
     ######################
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
+    printf "\nSplit command used:\n" | tee -a $dated_log $commands_log
+    printf $(date +"%Y-%m-%d_%H:%M")"\t\t"
     echo "cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
     cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
 
@@ -378,31 +381,47 @@ fi
     
     
 #############################
-#Generate a list of files that require ChIP-seq alignment and analysis in the next code block.
+#Generate a list of files that need to be aligned and analyzed in the next code block.
 #############################
+
+#list is an array that contains the prefixes of all the .fastq files to analyze.
+list=()
+fileextension=
 
 if [[ $alignonly == "called" ]]
 then
-    list=$@
+    input_files=$*
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
-    for i in $list
+    printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    for i in $input_files
         do
             echo ${i} | tee -a $dated_log  $commands_log
         done
+    
+    #Remove the .fastq or .txt postfix from the name
+    for i in $input_files
+        do
+            list+=("${i%%.*}")
+        done
+        
+    #Get file extension
+    firstfile="${input_files}"
+    fileextension="${firstfile##*.}"
+    
 fi
 
-if [[ $alignonly == "notcalled" ]]
+
+if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
 then
-    list=($(awk 'NR>1' mEO_multi_test/barcode_index.txt | awk '{print $1}'))
+    list=($(grep "\#" -v mEO_multi_test/barcode_index.txt | awk '{print $1}'))
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
-    for i in $list
+    printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    for i in "${list[@]}"
         do
             echo ${i}".fastq" | tee -a $dated_log  $commands_log
         done
+    fileextension="fastq"
 fi
-
 
 
 #############################
@@ -410,123 +429,129 @@ fi
 #############################
 
 #For each sample,
-    #1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
-    #2) perform Tagdust using a solexa library of adapter and primer sequences.
-    #3) perform Fastqc to make a report of quality
-    #4) bowtie alignment
-    #5) compress .sam --> .bam using samtools view
-    #6) Sort .bam into _sorted.bam using samtools sort
-    #7) Convert _sorted.bam into .bedgraph (.wig file) using zinba
-#    
-#
-#for j in $list
-#do
-#    #Remove the suffix
-#    i="${j%.*}"
-#    
-#    opd=${i}_opd
-#    opdpath="${i}_opd/"
-#    trimfile="1_${i}_trim.fastq"
-#    cleanfile="2_${i}_clean.fastq"
-#    samfile="4_${i}_output.sam"
-#    unaligned="4_${i}_unaligned.fastq"
-#    metrics="4_${i}_bowtiemetrics.txt"
-#    bamfile="5_${i}.bam"
-#    bam_sorted="6_${i}_sorted"
-#    bam_sort_file="6_${i}_sorted.bam"
-#    bed_file="7_${i}.bed"
-#    wig_file="8_${i}.wig"
-#    r_code="8_${i}_code.R"
-#    processlog=${i}_process.log
-#    btlog=${i}_bt.log
-#    
-#
-#    
-#
-#    printf "\n\n"  | tee -a $dated_log $commands_log
-#    echo "######################################################################"  | tee -a $dated_log $commands_log
-#    printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "PROCESSING $i:" | tee -a $dated_log $commands_log
-#    echo "######################################################################"  | tee -a $dated_log $commands_log
-#    
-#    #Make Output Directory
-#    printf "mkdir $opd" 2>&1 | tee -a $dated_log 
-#    mkdir $opd 2>&1 | tee -a $dated_log
-#
-#    if [[ $trimoff == "notcalled" ]]
-#    then
-#        #1) fastx_trim:
-#        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.fastq using command:" | tee -a $dated_log $commands_log
-#        cmd1="fastx_trimmer -f 9 -Q 33 -i "$i".fastq -o "$opdpath$trimfile
-#        printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#        echo $cmd1 2>&1 | tee -a $dated_log $commands_log
-#        fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
-#        $cmd1  2>&1 | tee -a $dated_log
-#    fi
-#
-#    #2) tagdust
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "  Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:" | tee -a $dated_log $commands_log
-#    cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.txt -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$opdpath$trimfile
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    echo $cmd2 2>&1 | tee -a $dated_log $commands_log
-#    $cmd2  2>&1 | tee -a $dated_log
-#
-#    #3) fastqc_report
-#    if [[ $qualityoff == "notcalled" ]]
-#    then
-#        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#        
-#        cmd_mkdir="mkdir "$opdpath"3_"${i}"_fastqc_opd"
-#        echo $cmd_mkdir 2>&1 | tee -a $dated_log $commands_log
-#        $cmd_mkdir  2>&1 | tee -a $dated_log
-#        
-#        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#        echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
-#        fastqc --version 2>&1 | tee -a $dated_log
-#        cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
-#        printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#        echo $cmd3 2>&1 | tee -a $dated_log $commands_log
-#        $cmd3  2>&1 | tee -a $dated_log
-#    fi
-#    
-#    
-#    #4) bowtie
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "  Bowtie2: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
-#    cmd4="bowtie2 -x "$bowtie2path" -U "$opdpath$cleanfile" -S "$opdpath$samfile" -q --phred33 --sensitive --end-to-end --seed 123 --un-gz "$opd_path$unaligned
-#    #Dan's command line:  bowtie2 -x dm3 -U run416.YW-Faire-8.19_ACTTGA_L001_R1.fastq -S yw_FAIRE_rep819_hits.sam -q --phred33 --sensitive --end-to-end --seed 123
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    echo $cmd4 2>&1 | tee -a $dated_log $commands_log 
-#    $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
-#    
+#    1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+#    2) perform Tagdust using a solexa library of adapter and primer sequences.
+#    3) perform Fastqc to make a report of quality
+#    4) bowtie alignment
+#    5) compress .sam --> .bam using samtools view
+#    6) Sort .bam into _sorted.bam using samtools sort
+#    7) Convert _sorted.bam into .bedgraph (.wig file) using zinba
+    
+
+for i in ${list[@]}
+do
+    #Remove the suffix
+    
+    opd=${i}_opd
+    opdpath="${i}_opd/"
+    trimfile="1_${i}_trim.fastq"
+    cleanfile="2_${i}_clean.fastq"
+    samfile="4_${i}_output.sam"
+    unaligned="4_${i}_unaligned.fastq"
+    metrics="4_${i}_bowtiemetrics.txt"
+    bamfile="5_${i}.bam"
+    bam_sorted="6_${i}_sorted"
+    bam_sort_file="6_${i}_sorted.bam"
+    bed_file="7_${i}.bed"
+    wig_file="8_${i}.wig"
+    r_code="8_${i}_code.R"
+    processlog=${i}_process.log
+    btlog=${i}_bt.log
+    
+    
+    
+    
+    printf "\n\n"  | tee -a $dated_log $commands_log
+    echo "######################################################################"  | tee -a $dated_log $commands_log
+    printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "PROCESSING $i:" | tee -a $dated_log $commands_log
+    echo "######################################################################"  | tee -a $dated_log $commands_log
+    
+    #Make Output Directory
+    printf "mkdir $opd" 2>&1 | tee -a $dated_log 
+    mkdir $opd 2>&1 | tee -a $dated_log
+
+    if [[ $trimoff == "notcalled" ]]
+    then
+        #1) fastx_trim:
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:" | tee -a $dated_log $commands_log
+        cmd1="fastx_trimmer -f 9 -Q 33 -i "$i"."$fileextension" -o "$opdpath$trimfile
+        printf "\t" 2>&1 | tee -a $dated_log $commands_log
+        echo $cmd1 2>&1 | tee -a $dated_log $commands_log
+        fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
+        $cmd1  2>&1 | tee -a $dated_log
+    fi
+
+    #2) tagdust
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "  Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:" | tee -a $dated_log $commands_log
+    cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.txt -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$opdpath$trimfile
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    echo $cmd2 2>&1 | tee -a $dated_log $commands_log
+    $cmd2  2>&1 | tee -a $dated_log
+
+    #3) fastqc_report
+    if [[ $qualityoff == "notcalled" ]]
+    then
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        
+        cmd_mkdir="mkdir "$opdpath"3_"${i}"_fastqc_opd"
+        echo $cmd_mkdir 2>&1 | tee -a $dated_log $commands_log
+        $cmd_mkdir  2>&1 | tee -a $dated_log
+        
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
+        fastqc --version 2>&1 | tee -a $dated_log
+        cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
+        printf "\t" 2>&1 | tee -a $dated_log $commands_log
+        echo $cmd3 2>&1 | tee -a $dated_log $commands_log
+        $cmd3  2>&1 | tee -a $dated_log
+    fi
+    
+    
+    #4) bowtie
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "  Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
+    cmd4="bowtie -q -S --nomaqround -m 1 --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
+    printf "\t $cmd4" 2>&1 | tee -a $dated_log $commands_log
+    $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
+    
+    ##4) bowtie2
+    #printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    #echo "  Bowtie2: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
+    #cmd4="bowtie2 -x "$bowtie2path" -U "$opdpath$cleanfile" -S "$opdpath$samfile" -q --phred33 --sensitive --end-to-end --seed 123 --un-gz "$opd_path$unaligned
+    ##Dan's command line:  bowtie2 -x dm3 -U run416.YW-Faire-8.19_ACTTGA_L001_R1.fastq -S yw_FAIRE_rep819_hits.sam -q --phred33 --sensitive --end-to-end --seed 123
+    #printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    #echo $cmd4 2>&1 | tee -a $dated_log $commands_log 
+    #$cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
 #    #5) samtools compress
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "  Samtools:  Compressing $samfile into $bamfile using command:" | tee -a $dated_log $commands_log
-#    cmd5="samtools view -bS -o "$opdpath$bamfile" "$opdpath$samfile
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    echo $cmd5 2>&1 | tee -a $dated_log $commands_log
-#    $cmd5  2>&1 | tee -a $dated_log
-#
-#    #6) samtools sort
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "  Samtools:  Sorting $bamfile into $bam_sort_file using command:" | tee -a $dated_log $commands_log
-#    cmd6="samtools sort "$opdpath$bamfile" "$opdpath$bam_sorted
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    echo $cmd6 2>&1 | tee -a $dated_log $commands_log
-#    $cmd6  2>&1 | tee -a $dated_log
-#    
-#    #7) bedtools, convert .bam -> .bed
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "   Bedtools:  Converting $bam_sort_file to $bed_file using command:" | tee -a $dated_log $commands_log
-#    cmd7="bedtools bamtobed -i "$opdpath$bam_sort_file" > "$opdpath$bed_file
-#
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    echo $cmd7 2>&1 | tee -a $dated_log $commands_log
-#    bedtools --version 2>&1 | tee -a $dated_log 
-#    bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
-#    
+
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "  Samtools:  Compressing $samfile into $bamfile using command:" | tee -a $dated_log $commands_log
+    cmd5="samtools view -bS -o "$opdpath$bamfile" "$opdpath$samfile
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    echo $cmd5 2>&1 | tee -a $dated_log $commands_log
+    $cmd5  2>&1 | tee -a $dated_log
+
+    #6) samtools sort
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "  Samtools:  Sorting $bamfile into $bam_sort_file using command:" | tee -a $dated_log $commands_log
+    cmd6="samtools sort "$opdpath$bamfile" "$opdpath$bam_sorted
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    echo $cmd6 2>&1 | tee -a $dated_log $commands_log
+    $cmd6  2>&1 | tee -a $dated_log
+    
+    #7) bedtools, convert .bam -> .bed
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "   Bedtools:  Converting $bam_sort_file to $bed_file using command:" | tee -a $dated_log $commands_log
+    cmd7="bedtools bamtobed -i "$opdpath$bam_sort_file" > "$opdpath$bed_file
+
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    echo $cmd7 2>&1 | tee -a $dated_log $commands_log
+    bedtools --version 2>&1 | tee -a $dated_log 
+    bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
+    
 #    
 #    
 #    #8) zinba .bed -> .wig
@@ -551,4 +576,10 @@ fi
 #    
 #    #9) gzip .wig -> .wig.gz
 #    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    printf "  gzip: Compressing $wig_file to
+#    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
+#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+#    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
+#    gzip $opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
+
+    
+done
