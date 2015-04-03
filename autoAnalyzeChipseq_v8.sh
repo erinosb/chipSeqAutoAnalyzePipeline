@@ -552,34 +552,34 @@ do
     bedtools --version 2>&1 | tee -a $dated_log 
     bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
     
-#    
-#    
-#    #8) zinba .bed -> .wig
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    echo "  R: Writing a .R file to convert $bed_file to $wig_file using Zinba(basealigncounts).\n" | tee -a $dated_log $commands_log
-#    
-#    zinba_code="
-#library(zinba)
-#basealigncount(
-#    inputfile=\"$opdpath$bed_file\",
-#    outputfile=\"$opdpath$wig_file\",
-#    extension="$extension",
-#    filetype=\"bed\",
-#    twoBitFile=\""$twobit"\"
-#)"
-#    echo "$zinba_code" > $opdpath$r_code 2>&1 | tee -a $dated_log $commands_log
-#    cmd8="/proj/.test/roach/FAIRE/bin/R --vanilla < "$opdpath$r_code
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    printf "%s" $cmd8 2>&1 | tee -a $dated_log $commands_log
-#    /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code 2>&1 | tee -a $dated_log
-#    printf "\n" | tee -a $dated_log
+    
+    
+    #8) zinba .bed -> .wig
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "  R: Writing a .R file to convert $bed_file to $wig_file using Zinba(basealigncounts).\n" | tee -a $dated_log $commands_log
+    
+    zinba_code="
+library(zinba)
+basealigncount(
+    inputfile=\"$opdpath$bed_file\",
+    outputfile=\"$opdpath$wig_file\",
+    extension="$extension",
+    filetype=\"bed\",
+    twoBitFile=\""$twobit"\"
+)"
+    echo "$zinba_code" > $opdpath$r_code 2>&1 | tee -a $dated_log $commands_log
+    cmd8="/proj/.test/roach/FAIRE/bin/R --vanilla < "$opdpath$r_code
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    printf "%s" $cmd8 2>&1 | tee -a $dated_log $commands_log
+    /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code 2>&1 | tee -a $dated_log
+    printf "\n" | tee -a $dated_log
 #    
 #    #9) gzip .wig -> .wig.gz
 #    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
 #    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
 #    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
-#    gzip $opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
+#    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
+#    gzip $opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
 
     
 done
