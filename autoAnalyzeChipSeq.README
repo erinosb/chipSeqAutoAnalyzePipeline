@@ -38,4 +38,30 @@ this pipeline really powerful:
       --> trimOff
       --> extension
       --> qualityOff
+
+150331
+
+ --> Created a github repository for chipSeqAutoAnalyzePipeline_v7.sh
+https://github.com/erinosb/chipSeqAutoAnalyzePipeline
+ --> $ git remote add origin https://github.com/erinosb/chipSeqAutoAnalyzePipeline.git$ git pull origin master
+ --> $ git push origin master
  
+150401
+ --> Updated input files for the multiplex and barcode files to include --max and --bar flags.
+
+150402
+ --> After talking to Kohta, I decided to revert to using bowtie1 as my aligner:
+ 
+150403
+--> Created a github repository for chipSeqAutoAnalyzePipeline_v7.sh
+https://github.com/erinosb/chipSeqAutoAnalyzePipeline
+--> $ git remote add origin https://github.com/erinosb/chipSeqAutoAnalyzePipeline.git
+--> $ git pull origin master
+--> $ git push origin master
+
+--> I started a new chipSeqAutoAnalyze_v8.sh version. I'll modify this to improve the flow and reporting.
+--> Re-named the options to make them more intuitive.
+--> Re-organized the unmultiplex split block so that exit is run outside the original split loop.
+--> Re-organized the reporting of the unmultiplexed splitting so that the barcodes used are given in the .log files.
+
+

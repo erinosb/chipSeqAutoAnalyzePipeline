@@ -1,21 +1,21 @@
 #! /bin/sh/
 
 ################################################
-#  autoAnalyzeChipseq_v5.sh
+#  autoAnalyzeChipseq_v8.sh
 #
 #PROGRAM
-#   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
+#   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
 #
 #
 #USAGE
 #   Split and Align Mode:
-#       bash autoAnalyzeChipseq_v5.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+#       bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
 #   Split Only Mode:
-#       bash autoAnalyzeChipseq_v5.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+#       bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
 #   Align Only Mode:
-#       bash autoAnalyzeChipseq_v5.sh --alignOnly [options] <input1.fastq> input2.fastq
+#       bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
 #
 #
 #MODES
@@ -93,7 +93,7 @@
 #####################   SET VARIABLES   ######################
 solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    #tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this
                                                                                   #variable to a path pointing to that file.
-bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
+#bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
                                                                                   #name of those index files.
                                                                                   #Also, the genome sequence (a .fa file) also needs to be in that same directory.
 bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"                                                                                  
@@ -107,18 +107,18 @@ twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            
 
 usage="
 PROGRAM
-   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
+   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
 
 
 USAGE
     Split and Align Mode:
-        bash autoAnalyzeChipseq_v5.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+        bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
     OR
     Split Only Mode:
-        bash autoAnalyzeChipseq_v5.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+        bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
     OR
     Align Only Mode:
-        bash autoAnalyzeChipseq_v5.sh --alignOnly [options] <input1.fastq> input2.fastq
+        bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
 
 
 MODES
@@ -176,7 +176,7 @@ OPTIONS
 
 
 #################
-#PRE-PROCESSING: Load modules, Check errors, get filenames, set options
+#PRE-PROCESSING: Start Log files, load modules, Check errors, get filenames, set options
 #################
 
 
@@ -196,10 +196,10 @@ dated_log=${DATE}.log
 commands_log=${DATE}_commands.log
 echo $DATE | tee -a $dated_log $commands_log
 
-echo "INITIATED autoAnalyzeChipseq_v2.sh using command: $0 $*" | tee -a $dated_log $commands_log
+echo "INITIATED autoAnalyzeChipseq_v8.sh using command: $0 $*" | tee -a $dated_log $commands_log
 printf "\n" | tee -a $dated_log $commands_log
 
-#printf "This pipeline was run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
+printf "This pipeline was run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
 #module list  | tee -a $dated_log $commands_log   ##Doesn't work
 #printf "\n" | tee -a $dated_log $commands_log ##Doesn't work
 
@@ -339,8 +339,8 @@ then
     ######################
     printf "\nSplit command used:\n" | tee -a $dated_log $commands_log
     printf $(date +"%Y-%m-%d_%H:%M")"\t\t"
-    echo "cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
-    cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
+    echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+    zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
 
 fi
 
@@ -413,7 +413,7 @@ fi
 
 if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
 then
-    list=($(grep "\#" -v mEO_multi_test/barcode_index.txt | awk '{print $1}'))
+    list=($(grep "\#" -v ${bar} | awk '{print $1}'))
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
     printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
     for i in "${list[@]}"
@@ -425,7 +425,7 @@ fi
 
 
 #############################
-#Quality Processing
+#Quality Processing, Alignment, Output
 #############################
 
 #For each sample,
@@ -513,7 +513,7 @@ do
     #4) bowtie
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo "  Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
-    cmd4="bowtie -q -S --nomaqround -m 1 --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
+    cmd4="bowtie -q -S --nomaqround -m 1 -p 2 --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
     printf "\t $cmd4" 2>&1 | tee -a $dated_log $commands_log
     $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
     
@@ -573,13 +573,13 @@ basealigncount(
     printf "%s" $cmd8 2>&1 | tee -a $dated_log $commands_log
     /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code 2>&1 | tee -a $dated_log
     printf "\n" | tee -a $dated_log
-#    
-#    #9) gzip .wig -> .wig.gz
-#    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-#    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
-#    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-#    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
-#    gzip $opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
+    
+    #9) gzip .wig -> .wig.gz
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
+    printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
+    gzip $opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
 
     
 done
