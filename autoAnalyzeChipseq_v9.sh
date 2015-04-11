@@ -1,51 +1,53 @@
 #! /bin/sh/
 
 ################################################
-#  autoAnalyzeChipseq_v5.sh
+#  autoAnalyzeChipseq_v8.sh
 #
 #PROGRAM
-#   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
+#   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
 #
 #
 #USAGE
-#
-#   bash autoAnalyzeChipseq_v5.sh [options] <inputFile.txt> <barcodeIndexFile.txt>
+#   Split and Align Mode:
+#       bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
-#   bash autoAnalyzeChipseq_v5.sh --splitOnly [options] <inputFile.txt> <barcodeIndexFile.txt>
+#   Split Only Mode:
+#       bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
-#   bash autoAnalyzeChipseq_v5.sh --splitOFF [options] <input1.fastq> input2.fastq
+#   Align Only Mode:
+#       bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
 #
 #
 #MODES
-#   There are three modes for use... --split mode (default), --splitOnly and --splitOff mode
-#   --split mode (default)      This mode uses as input a single homebrew multiplexed .txt file and
+#   There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
+#   --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
 #                               a single barcode index file. The pipeline then...
 #                                   0) splits the multiplexed file into single sample files by index
-    #                               1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
-    #                               2) perform Tagdust using a solexa library of adapter and primer sequences.
-    #                               3) perform Fastqc to make a report of quality
-    #                               4) bowtie alignment
-    #                               5) compress .sam --> .bam using samtools view
-    #                               6) Sort .bam into _sorted.bam using samtools sort
-    #                               7) Convert _sorted.bam into .bed using bedtools
-    #                               8) Convert .bed into .wig using zinba.
-    #                               9) gzip .wig to .wig.gz
-    #
+#                                   1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+#                                   2) perform Tagdust using a solexa library of adapter and primer sequences.
+#                                   3) perform Fastqc to make a report of quality
+#                                   4) bowtie alignment
+#                                   5) compress .sam --> .bam using samtools view
+#                                   6) Sort .bam into _sorted.bam using samtools sort
+#                                   7) Convert _sorted.bam into .bed using bedtools
+#                                   8) Convert .bed into .wig using zinba.
+#                                   9) gzip .wig to .wig.gz
+#    
 #   --splitOnly                 This mode uses as input a single homebrew multiplexed .txt file and
 #                               a single barcode index file. The pipeline then...
 #                                   0) splits the multiplexed file into single sample files by index
 #
-#   --splitOff                  This mode uses as input a list of .txt or .fastq files and analyzes them...
+#   --alignOnly                  This mode uses as input a list of .txt or .fastq files and analyzes them...
 #                               a single barcode index file. The pipeline then...
-    #                               1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
-    #                               2) perform Tagdust using a solexa library of adapter and primer sequences.
-    #                               3) perform Fastqc to make a report of quality
-    #                               4) bowtie alignment
-    #                               5) compress .sam --> .bam using samtools view
-    #                               6) Sort .bam into _sorted.bam using samtools sort
-    #                               7) Convert _sorted.bam into .bed using bedtools
-    #                               8) Convert .bed into .wig using zinba.
-    #                               9) gzip .wig to .wig.gz
+#                                   1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+#                                   2) perform Tagdust using a solexa library of adapter and primer sequences.
+#                                   3) perform Fastqc to make a report of quality
+#                                   4) bowtie alignment
+#                                   5) compress .sam --> .bam using samtools view
+#                                   6) Sort .bam into _sorted.bam using samtools sort
+#                                   7) Convert _sorted.bam into .bed using bedtools
+#                                   8) Convert .bed into .wig using zinba.
+#                                   9) gzip .wig to .wig.gz
 #
 #
 #ARGUMENTS
@@ -63,7 +65,7 @@
 #OPTIONS
 #
 #   --splitOnly                 Runs in spligOnly mode. Suppresses analysis.
-#   --splitOff                  Runs in splitOff mode. Suppresses splitting sequencefiles
+#   --alignOnly                  Runs in alignOnly mode. Suppresses splitting sequencefiles
 #   --qualityOff                Suppresses quality score reports
 #   --extension <n>             Specify the length bp to extend reads in the .wig file
 #   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
@@ -91,9 +93,10 @@
 #####################   SET VARIABLES   ######################
 solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    #tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this
                                                                                   #variable to a path pointing to that file.
-bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #tophat needs to know where the bowtie2 index files are located. Set this varaible to the path and root
+#bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
                                                                                   #name of those index files.
                                                                                   #Also, the genome sequence (a .fa file) also needs to be in that same directory.
+bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"                                                                                  
 extension=100                                                                         #zinba needs to know how long your reads are so that it can make a .wig file with the proper extension lengths
 twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            #zinba needs to know where the bowtie twobit files are located. I'm not sure whether zinba works with updated bowtie2
                                                                                   #files or whether you need the old bowtie twobit files.
@@ -104,24 +107,26 @@ twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            
 
 usage="
 PROGRAM
-   autoAnalyzeChipseq_v5.sh - To automate the analysis of multiplexed ChIP-seq data
+   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
 
 
 USAGE
-
-   bash autoAnalyzeChipseq_v5.sh [options] <inputFile.txt> <barcodeIndexFile.txt>
-   OR
-   bash autoAnalyzeChipseq_v5.sh --splitOnly [options] <inputFile.txt> <barcodeIndexFile.txt>
-   OR
-   bash autoAnalyzeChipseq_v5.sh --splitOFF [options] <input1.fastq> input2.fastq
+    Split and Align Mode:
+        bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+    OR
+    Split Only Mode:
+        bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+    OR
+    Align Only Mode:
+        bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
 
 
 MODES
-   There are three modes for use... --split mode (default), --splitOnly and --splitOff mode
+   There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
    --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
                                a single barcode index file. The pipeline then...
                                    0) splits the multiplexed file into single sample files by index
-                                  1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+                                   1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
                                    2) perform Tagdust using a solexa library of adapter and primer sequences.
                                    3) perform Fastqc to make a report of quality
                                    4) bowtie alignment
@@ -164,14 +169,14 @@ OPTIONS
 
    --splitNAlign                Runs this script in a split and align mode.
    --splitOnly                  Runs this script in splitOnly mode. Suppresses alignment.
-   --alignOnly                  Runs in splitOff mode. Suppresses splitting sequencefiles
+   --alignOnly                  Runs in alignOnly mode. Suppresses splitting sequencefiles
    --qualityOff                 Suppresses quality score reports
    --extension <n>              Specify the length bp to extend reads in the .wig file
    --trimOff                    Suppresses trimming six basepairs of multiplexing indices"
 
 
 #################
-#PRE-PROCESSING: Load modules, Check errors, get filenames, set options
+#PRE-PROCESSING: Start Log files, load modules, Check errors, get filenames, set options
 #################
 
 
@@ -183,43 +188,46 @@ OPTIONS
 
 
 
+
+
 #Start logfiles
 DATE=$(date +"%Y-%m-%d_%H%M")
 dated_log=${DATE}.log
 commands_log=${DATE}_commands.log
 echo $DATE | tee -a $dated_log $commands_log
 
-echo "INITIATED autoAnalyzeChipseq_v2.sh using command: $0 $*" | tee -a $dated_log $commands_log
+echo "INITIATED autoAnalyzeChipseq_v8.sh using command: $0 $*" | tee -a $dated_log $commands_log
 printf "\n" | tee -a $dated_log $commands_log
 
-if [ -z "$1" ]
-  then
-    echo "ERROR: No inputFile supplied:" | tee -a $dated_log $commands_log
-    echo "$usage"  | tee -a $dated_log $commands_log
-    exit
-fi
-
-if [ -z "$2" ]
-  then
-    echo "ERROR: No barcodeIndexFile supplied:" | tee -a $dated_log $commands_log
-    echo "$usage"  | tee -a $dated_log $commands_log
-    exit
-fi
+printf "This pipeline was run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
+#module list  | tee -a $dated_log $commands_log   ##Doesn't work
+#printf "\n" | tee -a $dated_log $commands_log ##Doesn't work
 
 #Set options
-
 alignonly="notcalled"
 qualityoff="notcalled"
 splitonly="notcalled"
 trimoff="notcalled"
+multi="undefined"
+bar="undefined"
 list=$@
+
+#Check for options and input:
+if [ -z "$1" ]
+  then
+    echo "ERROR: No options or input files supplied:" | tee -a $dated_log $commands_log
+    echo "$usage"  | tee -a $dated_log $commands_log
+    exit
+fi
 
 #Get options
 for n in $@
 do
     case $n in
-        --splitOff) shift;
-        splitoff="called"
+        --splitNAlign) shift;
+        ;;
+        --alignOnly) shift;
+        alignonly="called"
         ;;
         --splitOnly) shift;
         splitonly="called"
@@ -234,56 +242,109 @@ do
         extension=${1:--}
         shift
         ;;
+        --multi) shift;
+        multi="$1"
+        shift
+        ;;
+        --bar) shift;
+        bar="$1"
+        shift
+        ;;
     esac
 done
 
 
 
-#Un-multiplex using barcode splitter
-if [[ $splitoff == "notcalled" ]]
-then
-    multi=$1
-    index=$2
+#Check for errors. If split is to be performed, there should be a multi file and a bar file:
 
-    printf "\nSplitting seqfile:\n  "  | tee -a $dated_log $commands_log
+#Report that splitonly mode was called. Check for errors if splitonly mode is called.
+if [[ $splitonly == "called" ]]
+then
+    printf "\nRUNNING IN SPLITONLY MODE\n"  | tee -a $dated_log $commands_log
+    printf "\nFILE TO SPLIT IS: $multi" | tee -a $dated_log $commands_log
+    printf "\nBARCODE FILE IS: $bar" | tee -a $dated_log $commands_log
     
-    echo $multi | tee -a $dated_log $commands_log
-    printf "into multiple files based on barcodes in:\n  " | tee -a $dated_log $commands_log
-    echo $index | tee -a $dated_log $commands_log
-    printf "using command:\n\n  " | tee -a $dated_log $commands_log
+    if [[ $multi == "undefined" ]]
+    then
+        printf "\n" | tee -a $dated_log $commands_log
+        echo "ERROR: No inputFile supplied:" | tee -a $dated_log $commands_log
+        echo "$usage"  | tee -a $dated_log $commands_log
+        exit
+    fi
+    
+    if [[ $bar == "undefined" ]]
+    then
+        printf "\n" | tee -a $dated_log $commands_log
+        echo "ERROR: No barcodeIndexFile supplied:" | tee -a $dated_log $commands_log
+        echo "$usage"  | tee -a $dated_log $commands_log
+        exit
+    fi
+fi
+
+#Report that splitnalign mode was called. Check for errors if splitnalign mode is called.
+if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
+then
+    printf "\nRUNNING IN SPLIT-N-ALIGN MODE\n"  | tee -a $dated_log $commands_log
+    printf "\nFILE TO SPLIT IS: $multi" | tee -a $dated_log $commands_log
+    printf "\nBARCODE FILE IS: $bar" | tee -a $dated_log $commands_log
+    
+    if [[ $multi = "undefined" ]]
+    then
+        printf "\n" | tee -a $dated_log $commands_log
+        echo "ERROR: No inputFile supplied:" | tee -a $dated_log $commands_log
+        echo "$usage"  | tee -a $dated_log $commands_log
+        exit
+    fi
+    
+    if [[ $bar = "undefined" ]]
+    then
+        printf "\n" | tee -a $dated_log $commands_log
+        echo "ERROR: No barcodeIndexFile supplied:" | tee -a $dated_log $commands_log
+        echo "$usage"  | tee -a $dated_log $commands_log
+        exit
+    fi
+ 
+fi
+
+#Report that alignonly mode was called. Check for errors if alignonly mode is called.
+if [[ $alignonly == "called" ]]
+then
+    printf "\nRUNNING IN ALIGNONLY MODE\n"  | tee -a $dated_log $commands_log
+    printf "\nFILES TO ALIGN ARE: $*" | tee -a $dated_log $commands_log
+    
+    if [ -z "$1" ]
+    then
+        printf "\n" | tee -a $dated_log $commands_log
+        echo "ERROR: No options or input files supplied:" | tee -a $dated_log $commands_log
+        echo "$usage"  | tee -a $dated_log $commands_log
+        exit
+    fi
+fi
+
+######################
+#If splitting needs to happen, un-multiplex using fastx barcode splitter [alignOnly == "notcalled"]
+######################
+
+if [[ $alignonly == "notcalled" ]]
+then
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
+    printf "\nSplitting $multi into multiple files based on barcodes in $bar\n"  | tee -a $dated_log $commands_log
+    more $bar | tee -a $dated_log $commands_log
+
     
     
     
     ######################
     #Split the multiplexed file into multiple files based on barcoded indexes
     ######################
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    echo "cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
-    cat $multi | fastx_barcode_splitter.pl --bcfile $index --prefix "" --suffix ".fastq" --bol | tee -a $dated_log $commands_log
+    printf "\nSplit command used:\n" | tee -a $dated_log $commands_log
+    printf $(date +"%Y-%m-%d_%H:%M")"\t\t"
+    echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+    zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
 
-    #####################
-    #Stop the program here if --splitOnly is called
-    #####################
-    if [[ $splitonly == "called" ]]
-    then
-        exit
-    fi
-    
-    
-    
-    ######################
-    #Loop through each of the new split sequence files and perform tasks on individuals:
-    ######################
-
-    list=$(awk '{print $1;}' $index | grep -v '#')
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
-    for i in $list
-    do
-        echo ${i}\.fastq | tee -a $dated_log $commands_log
-    done
-    printf "\n" | tee -a $dated_log $commands_log
 fi
+
+
 
 
 ##############################
@@ -293,43 +354,93 @@ fi
 if [[ $splitonly == "called" ]]
 then
     exit
+
 fi
 
 #############################
-#If splitOff is called, use the list of remaining arguments as input files...
+#If alignOnly is called, use the list of remaining arguments as input files...
 #############################
 
-if [[ $splitoff == "called" ]]
+
+    
+    
+    ######################
+    #Loop through each of the new split sequence files and perform tasks on individuals:
+    ######################
+
+    #list=$(awk '{print $1;}' $index | grep -v '#')
+    #printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
+    #printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    #for i in $list
+    #do
+    #    echo ${i}\.fastq | tee -a $dated_log $commands_log
+    #done
+  #  printf "\n" | tee -a $dated_log $commands_log
+    
+    
+    
+    
+#############################
+#Generate a list of files that need to be aligned and analyzed in the next code block.
+#############################
+
+#list is an array that contains the prefixes of all the .fastq files to analyze.
+list=()
+fileextension=
+
+if [[ $alignonly == "called" ]]
 then
-    list=$@
+    input_files=$*
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
-    for i in $list
+    printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    for i in $input_files
         do
             echo ${i} | tee -a $dated_log  $commands_log
         done
+    
+    #Remove the .fastq or .txt postfix from the name
+    for i in $input_files
+        do
+            list+=("${i%%.*}")
+        done
+        
+    #Get file extension
+    firstfile="${input_files}"
+    fileextension="${firstfile##*.}"
+    
 fi
 
 
+if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
+then
+    list=($(grep "\#" -v ${bar} | awk '{print $1}'))
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
+    printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    for i in "${list[@]}"
+        do
+            echo ${i}".fastq" | tee -a $dated_log  $commands_log
+        done
+    fileextension="fastq"
+fi
+
 
 #############################
-#Quality Processing
+#Quality Processing, Alignment, Output
 #############################
 
 #For each sample,
-    #1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
-    #2) perform Tagdust using a solexa library of adapter and primer sequences.
-    #3) perform Fastqc to make a report of quality
-    #4) bowtie alignment
-    #5) compress .sam --> .bam using samtools view
-    #6) Sort .bam into _sorted.bam using samtools sort
-    #7) Convert _sorted.bam into .bedgraph (.wig file) using zinba
+#    1) Use fastx_trimmer to remove the barcode index from each sequencing read and remove low quality reads
+#    2) perform Tagdust using a solexa library of adapter and primer sequences.
+#    3) perform Fastqc to make a report of quality
+#    4) bowtie alignment
+#    5) compress .sam --> .bam using samtools view
+#    6) Sort .bam into _sorted.bam using samtools sort
+#    7) Convert _sorted.bam into .bedgraph (.wig file) using zinba
     
 
-for j in $list
+for i in ${list[@]}
 do
     #Remove the suffix
-    i="${j%.*}"
     
     opd=${i}_opd
     opdpath="${i}_opd/"
@@ -347,9 +458,9 @@ do
     processlog=${i}_process.log
     btlog=${i}_bt.log
     
-
     
-
+    
+    
     printf "\n\n"  | tee -a $dated_log $commands_log
     echo "######################################################################"  | tee -a $dated_log $commands_log
     printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
@@ -364,8 +475,8 @@ do
     then
         #1) fastx_trim:
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.fastq using command:" | tee -a $dated_log $commands_log
-        cmd1="fastx_trimmer -f 9 -Q 33 -i "$i".fastq -o "$opdpath$trimfile
+        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:" | tee -a $dated_log $commands_log
+        cmd1="fastx_trimmer -f 9 -Q 33 -i "$i"."$fileextension" -o "$opdpath$trimfile
         printf "\t" 2>&1 | tee -a $dated_log $commands_log
         echo $cmd1 2>&1 | tee -a $dated_log $commands_log
         fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
@@ -401,14 +512,21 @@ do
     
     #4) bowtie
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Bowtie2: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
-    cmd4="bowtie2 -x "$bowtie2path" -U "$opdpath$cleanfile" -S "$opdpath$samfile" -q --phred33 --sensitive --end-to-end --seed 123 --un-gz "$opd_path$unaligned
-    #Dan's command line:  bowtie2 -x dm3 -U run416.YW-Faire-8.19_ACTTGA_L001_R1.fastq -S yw_FAIRE_rep819_hits.sam -q --phred33 --sensitive --end-to-end --seed 123
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd4 2>&1 | tee -a $dated_log $commands_log 
+    echo "  Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
+    cmd4="bowtie -q -S --nomaqround -m 1 -p 2 --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
+    printf "\t $cmd4" 2>&1 | tee -a $dated_log $commands_log
     $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
     
-    #5) samtools compress
+    ##4) bowtie2
+    #printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    #echo "  Bowtie2: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
+    #cmd4="bowtie2 -x "$bowtie2path" -U "$opdpath$cleanfile" -S "$opdpath$samfile" -q --phred33 --sensitive --end-to-end --seed 123 --un-gz "$opd_path$unaligned
+    ##Dan's command line:  bowtie2 -x dm3 -U run416.YW-Faire-8.19_ACTTGA_L001_R1.fastq -S yw_FAIRE_rep819_hits.sam -q --phred33 --sensitive --end-to-end --seed 123
+    #printf "\t" 2>&1 | tee -a $dated_log $commands_log
+    #echo $cmd4 2>&1 | tee -a $dated_log $commands_log 
+    #$cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
+#    #5) samtools compress
+
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo "  Samtools:  Compressing $samfile into $bamfile using command:" | tee -a $dated_log $commands_log
     cmd5="samtools view -bS -o "$opdpath$bamfile" "$opdpath$samfile
@@ -460,9 +578,8 @@ basealigncount(
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
     printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
-    gzip $opdpath$wig_file 2>&1 | tee -a $dated.log $commands_log
+    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
+    gzip $opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
 
     
 done
-
