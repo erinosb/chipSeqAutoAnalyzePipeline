@@ -1,21 +1,22 @@
 #! /bin/sh/
 
 ################################################
-#  autoAnalyzeChipseq_v8.sh
+#  autoAnalyzeChipseq_v9.sh
+#  Copyright (c) 2015, Erin Osborne Nishimura
 #
 #PROGRAM
-#   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
+#   autoAnalyzeChipseq_v9.sh - To automate the analysis of multiplexed ChIP-seq data
 #
 #
 #USAGE
 #   Split and Align Mode:
-#       bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+#       bash autoAnalyzeChipseq_v9.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
 #   Split Only Mode:
-#       bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+#       bash autoAnalyzeChipseq_v9.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
 #   OR
 #   Align Only Mode:
-#       bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
+#       bash autoAnalyzeChipseq_v9.sh --alignOnly [options] <input1.fastq> input2.fastq
 #
 #
 #MODES
@@ -30,8 +31,7 @@
 #                                   5) compress .sam --> .bam using samtools view
 #                                   6) Sort .bam into _sorted.bam using samtools sort
 #                                   7) Convert _sorted.bam into .bed using bedtools
-#                                   8) Convert .bed into .wig using zinba.
-#                                   9) gzip .wig to .wig.gz
+#                                   8) Convert .bed into .bw file using bedToBw.sh dependency script
 #    
 #   --splitOnly                 This mode uses as input a single homebrew multiplexed .txt file and
 #                               a single barcode index file. The pipeline then...
@@ -46,8 +46,7 @@
 #                                   5) compress .sam --> .bam using samtools view
 #                                   6) Sort .bam into _sorted.bam using samtools sort
 #                                   7) Convert _sorted.bam into .bed using bedtools
-#                                   8) Convert .bed into .wig using zinba.
-#                                   9) gzip .wig to .wig.gz
+#                                   8) Convert .bed into .bw file using bedToBw.sh dependency script
 #
 #
 #ARGUMENTS
@@ -64,29 +63,29 @@
 #
 #OPTIONS
 #
-#   --splitOnly                 Runs in spligOnly mode. Suppresses analysis.
-#   --alignOnly                  Runs in alignOnly mode. Suppresses splitting sequencefiles
+#   --splitOnly                 Runs in splitOnly mode. Suppresses analysis.
+#   --alignOnly                 Runs in alignOnly mode. Suppresses splitting sequencefiles
 #   --qualityOff                Suppresses quality score reports
 #   --extension <n>             Specify the length bp to extend reads in the .wig file
 #   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
+#   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>
+#   --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
+#                               It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files
+#   
 #   
 #AUTHOR
 #   Erin Osborne Nishimura
 #
 #DATE
-#   April 4, 2014
+#   April 11, 2015
 #
-#BUGS
+#BUGS/FUTURE EXPANSION
 #   -- check whether certain modules have been loaded;
 #   -- Auto load all required modules
+#   -- add a -p flag
+#   -- toggle between bowtie or bowtie2
 #
 #
-#TO FIX
-#
-#POTENTIAL FUTURE EXPANSION
-#   Accept batch multiplex sequencefiles
-#   Switch to accept both inputFile.txt and inputFile.fastq and to croak and die if neither suffixes are present
-#   Change the optioning such that there are three different modes... --split, --analyze, and --cleanup
 #
 #################################################
 
@@ -96,29 +95,27 @@ solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    
 #bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
                                                                                   #name of those index files.
                                                                                   #Also, the genome sequence (a .fa file) also needs to be in that same directory.
-bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"                                                                                  
-extension=100                                                                         #zinba needs to know how long your reads are so that it can make a .wig file with the proper extension lengths
-twobit=/proj/dllab/Erin/ce10/from_ucsc/seq/ce10.2bit                            #zinba needs to know where the bowtie twobit files are located. I'm not sure whether zinba works with updated bowtie2
-                                                                                  #files or whether you need the old bowtie twobit files.
-                                                                                  
+bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"
+
+chromlength="/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"               #bedToBw.sh needs to know how long each chromosome is
 ##################################################################################################
 
 
 
 usage="
 PROGRAM
-   autoAnalyzeChipseq_v8.sh - To automate the analysis of multiplexed ChIP-seq data
-
+   autoAnalyzeChipseq_v9.sh - To automate the analysis of multiplexed ChIP-seq data
+   Copyright (c) 2015, Erin Osborne Nishimura
 
 USAGE
     Split and Align Mode:
-        bash autoAnalyzeChipseq_v8.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+        bash autoAnalyzeChipseq_v9.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
     OR
     Split Only Mode:
-        bash autoAnalyzeChipseq_v8.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+        bash autoAnalyzeChipseq_v9.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
     OR
     Align Only Mode:
-        bash autoAnalyzeChipseq_v8.sh --alignOnly [options] <input1.fastq> input2.fastq
+        bash autoAnalyzeChipseq_v9.sh --alignOnly [options] <input1.fastq> input2.fastq
 
 
 MODES
@@ -133,8 +130,7 @@ MODES
                                    5) compress .sam --> .bam using samtools view
                                    6) Sort .bam into _sorted.bam using samtools sort
                                    7) Convert _sorted.bam into .bed using bedtools
-                                   8) Convert .bed into .wig using zinba.
-                                   9) gzip .wig to .wig.gz
+                                   8) Convert .bed into .bw file using bedToBw.sh dependency script
     
    --splitOnly                 This mode uses as input a single homebrew multiplexed .txt file and
                                a single barcode index file. The pipeline then...
@@ -149,8 +145,7 @@ MODES
                                    5) compress .sam --> .bam using samtools view
                                    6) Sort .bam into _sorted.bam using samtools sort
                                    7) Convert _sorted.bam into .bed using bedtools
-                                   8) Convert .bed into .wig using zinba.
-                                   9) gzip .wig to .wig.gz
+                                   8) Convert .bed into .bw file using bedToBw.sh dependency script
 
 
 ARGUMENTS
@@ -163,16 +158,19 @@ ARGUMENTS
                    EO35	GATCTTG
                    EO36	TCAGGAC
                    EO37	ACAGTTG
+                   
    <input1.fastq>          This is an input .fastq file 
 
 OPTIONS
 
-   --splitNAlign                Runs this script in a split and align mode.
-   --splitOnly                  Runs this script in splitOnly mode. Suppresses alignment.
-   --alignOnly                  Runs in alignOnly mode. Suppresses splitting sequencefiles
-   --qualityOff                 Suppresses quality score reports
-   --extension <n>              Specify the length bp to extend reads in the .wig file
-   --trimOff                    Suppresses trimming six basepairs of multiplexing indices"
+   --splitOnly                 Runs in splitOnly mode. Suppresses analysis.
+   --alignOnly                 Runs in alignOnly mode. Suppresses splitting sequencefiles
+   --qualityOff                Suppresses quality score reports
+   --extension <n>             Specify the length bp to extend reads in the .wig file
+   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
+   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>
+   --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
+                               It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files"
 
 
 #################
@@ -180,28 +178,22 @@ OPTIONS
 #################
 
 
-#Load modules
-#module add samtools
-#module add bedtools
-#module add bowtie2
-#module add fastqc
-
-
-
-
 
 #Start logfiles
 DATE=$(date +"%Y-%m-%d_%H%M")
 dated_log=${DATE}.log
 commands_log=${DATE}_commands.log
-echo $DATE | tee -a $dated_log $commands_log
+printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
 
-echo "INITIATED autoAnalyzeChipseq_v8.sh using command: $0 $*" | tee -a $dated_log $commands_log
+echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command: \n\t\t$0 $*\n" | tee -a $dated_log $commands_log
+
+printf "This pipeline requires the following modules: samtools, bedtools, bowtie, fastqc"
+
+printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
+source /nas02/apps/Modules/default/init/bash
+module list  | tee -a $dated_log $commands_log
 printf "\n" | tee -a $dated_log $commands_log
 
-printf "This pipeline was run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
-#module list  | tee -a $dated_log $commands_log   ##Doesn't work
-#printf "\n" | tee -a $dated_log $commands_log ##Doesn't work
 
 #Set options
 alignonly="notcalled"
@@ -210,6 +202,9 @@ splitonly="notcalled"
 trimoff="notcalled"
 multi="undefined"
 bar="undefined"
+parallel=1
+extension=100
+cleanoff="notcalled"
 list=$@
 
 #Check for options and input:
@@ -250,10 +245,15 @@ do
         bar="$1"
         shift
         ;;
+        -p) shift;
+        parallel=${1:--}
+        shift
+        ;;
+        --cleanOff) shift;
+        cleanoff="called"
+        ;;
     esac
 done
-
-
 
 #Check for errors. If split is to be performed, there should be a multi file and a bar file:
 
@@ -327,21 +327,29 @@ fi
 
 if [[ $alignonly == "notcalled" ]]
 then
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
-    printf "\nSplitting $multi into multiple files based on barcodes in $bar\n"  | tee -a $dated_log $commands_log
-    more $bar | tee -a $dated_log $commands_log
+    printf "\n\n"  | tee -a $dated_log $commands_log
+    echo "######################################################################"  | tee -a $dated_log $commands_log
+    printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo "SPLITTING" | tee -a $dated_log $commands_log
+    echo "######################################################################"  | tee -a $dated_log $commands_log
 
-    
+    #printf "\n\tSplitting $multi into multiple files based on barcodes in $bar\n"  | tee -a $dated_log $commands_log
+    #more $bar | tee -a $dated_log $commands_log
     
     
     ######################
     #Split the multiplexed file into multiple files based on barcoded indexes
     ######################
-    printf "\nSplit command used:\n" | tee -a $dated_log $commands_log
-    printf $(date +"%Y-%m-%d_%H:%M")"\t\t"
-    echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
-    zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
-
+    printf "\n\t\t"
+    if [[ "$multi" = *.gz$ ]]
+    then
+        echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+        zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
+    else
+        echo "cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+        cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log        
+    fi
+    
 fi
 
 
@@ -356,27 +364,6 @@ then
     exit
 
 fi
-
-#############################
-#If alignOnly is called, use the list of remaining arguments as input files...
-#############################
-
-
-    
-    
-    ######################
-    #Loop through each of the new split sequence files and perform tasks on individuals:
-    ######################
-
-    #list=$(awk '{print $1;}' $index | grep -v '#')
-    #printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
-    #printf "\nWill Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
-    #for i in $list
-    #do
-    #    echo ${i}\.fastq | tee -a $dated_log $commands_log
-    #done
-  #  printf "\n" | tee -a $dated_log $commands_log
-    
     
     
     
@@ -388,6 +375,7 @@ fi
 list=()
 fileextension=
 
+#If alignonly is called, the .fastq files are still in $@
 if [[ $alignonly == "called" ]]
 then
     input_files=$*
@@ -410,7 +398,7 @@ then
     
 fi
 
-
+#In splitNAlign mode, the names of the files to analyze should be in the --bar barcode file
 if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
 then
     list=($(grep "\#" -v ${bar} | awk '{print $1}'))
@@ -453,10 +441,7 @@ do
     bam_sorted="6_${i}_sorted"
     bam_sort_file="6_${i}_sorted.bam"
     bed_file="7_${i}.bed"
-    wig_file="8_${i}.wig"
-    r_code="8_${i}_code.R"
-    processlog=${i}_process.log
-    btlog=${i}_bt.log
+    bw_file="8_${i}x${extension}n.bw"
     
     
     
@@ -477,8 +462,8 @@ do
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         echo "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:" | tee -a $dated_log $commands_log
         cmd1="fastx_trimmer -f 9 -Q 33 -i "$i"."$fileextension" -o "$opdpath$trimfile
-        printf "\t" 2>&1 | tee -a $dated_log $commands_log
-        echo $cmd1 2>&1 | tee -a $dated_log $commands_log
+        printf "\t$cmd1" 2>&1 | tee -a $dated_log $commands_log
+        #echo $cmd1 2>&1 | tee -a $dated_log $commands_log
         fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
         $cmd1  2>&1 | tee -a $dated_log
     fi
@@ -504,8 +489,7 @@ do
         echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
         fastqc --version 2>&1 | tee -a $dated_log
         cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
-        printf "\t" 2>&1 | tee -a $dated_log $commands_log
-        echo $cmd3 2>&1 | tee -a $dated_log $commands_log
+        printf "\t$cmd3" 2>&1 | tee -a $dated_log $commands_log
         $cmd3  2>&1 | tee -a $dated_log
     fi
     
@@ -513,7 +497,7 @@ do
     #4) bowtie
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo "  Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
-    cmd4="bowtie -q -S --nomaqround -m 1 -p 2 --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
+    cmd4="bowtie -q -S --nomaqround -m 1 -p $parallel --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
     printf "\t $cmd4" 2>&1 | tee -a $dated_log $commands_log
     $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
     
@@ -530,8 +514,7 @@ do
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo "  Samtools:  Compressing $samfile into $bamfile using command:" | tee -a $dated_log $commands_log
     cmd5="samtools view -bS -o "$opdpath$bamfile" "$opdpath$samfile
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd5 2>&1 | tee -a $dated_log $commands_log
+    printf "\t$cmd5" 2>&1 | tee -a $dated_log $commands_log
     $cmd5  2>&1 | tee -a $dated_log
 
     #6) samtools sort
@@ -552,34 +535,143 @@ do
     bedtools --version 2>&1 | tee -a $dated_log 
     bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
     
-    
-    
-    #8) zinba .bed -> .wig
+    #8) bedToBw.sh: convert .bed -> .bw
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  R: Writing a .R file to convert $bed_file to $wig_file using Zinba(basealigncounts).\n" | tee -a $dated_log $commands_log
-    
-    zinba_code="
-library(zinba)
-basealigncount(
-    inputfile=\"$opdpath$bed_file\",
-    outputfile=\"$opdpath$wig_file\",
-    extension="$extension",
-    filetype=\"bed\",
-    twoBitFile=\""$twobit"\"
-)"
-    echo "$zinba_code" > $opdpath$r_code 2>&1 | tee -a $dated_log $commands_log
-    cmd8="/proj/.test/roach/FAIRE/bin/R --vanilla < "$opdpath$r_code
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    printf "%s" $cmd8 2>&1 | tee -a $dated_log $commands_log
-    /proj/.test/roach/FAIRE/bin/R --vanilla < $opdpath$r_code 2>&1 | tee -a $dated_log
-    printf "\n" | tee -a $dated_log
-    
-    #9) gzip .wig -> .wig.gz
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    printf "  gzip: Compressing $wig_file to $wig_file.gz using command:\n" | tee -a $dated_log $commands_log
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    printf "gzip "$opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
-    gzip $opdpath$wig_file 2>&1 | tee -a $dated_log $commands_log
-
+    echo "   bedToBw:  Converting $bed_file to $bw_file using command:" | tee -a $dated_log $commands_log
+    inputbedfile="${i}_opd/7_${i}.bed"
+    cmd8="bedToBw.sh $inputbedfile $extension $chromlength -n -bw"
+    echo -e "\t$cmd8\n" | tee -a $dated_log $commands_log
+    eval $cmd8 2>&1 | tee -a $dated_log
+    mv "${i}_opd/7_${i}x${extension}n.bw" "${i}_opd/8_${i}x${extension}n.bw" 2>&1 | tee -a $dated_log
     
 done
+
+
+
+#Printout a summary
+printf "\n\n"  | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+printf $(date +"%Y-%m-%d_%H:%M")"\tSUMMARY\n" | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+
+grepcapturenumber=$(( ${#list[@]} + 2 ))
+
+
+#dated_log="2015-04-19_1520.log"
+
+#Get the number of rawreads generated by the fastx_split function:
+grepcapture=$(grep -P 'Barcode\tCount\tLocation' ${dated_log} -A ${grepcapturenumber})
+echo "${grepcapture}" > temp_grep.txt
+rawreads=($(awk '{print $2}' temp_grep.txt))
+
+
+#Start collecting all the data with this header: 
+echo -e "Name\t#Rawreads\t#cleanReads\tPercentCleanReads\t#bowtieMappedReads\tMappedPercent\t#BowtieFailedReads\tFailedPercent\t#BowtieSuppressed\tSuppressedPercent"  | tee -a $dated_log 
+m=0
+
+#Loop through and quantify summarizing stats:
+for i in ${list[@]}
+do
+    #Remove the suffix
+    opdpath="${i}_opd/"
+    metrics="4_${i}_bowtiemetrics.txt"
+
+    rawnum=${rawreads[${m} + 1]}
+    cleanwc=0
+    cleannum=0
+    cleanpercent=0
+    
+    #Count the nubmer of lines in the clean.fastq file if it was generated. Divide that number by 4 to get the number of reads that passed tagdust.
+    if [ -e ${i}_opd/2_${i}_clean.fastq ]
+    then
+        cleanwc=($(wc ${i}_opd/2_${i}_clean.fastq))
+        cleannum=$((cleanwc / 4))
+    fi
+    
+    #Get the Tagdust stats.
+    if [[ $rawnum > 0 ]]
+    then
+        cleanpercent=$((100 * cleannum / rawnum))
+    fi
+    
+    bowtiealigned=0
+    bowtiealignedpercent=0
+    bowtiesuppressed="NA"
+    bowtiefailed="NA"
+    bowtiefailedpercent="NA"
+    
+    #Get the Bowtie Stats:
+    if [ -e ${i}_opd/4_${i}_bowtiemetrics.txt ]
+    then
+        #printf "running bowtiemetrics"
+        bowtiealigned=$(grep -Po "# reads with at least one reported alignment: [0-9]+" ${opdpath}${metrics} | grep -Po "[0-9]+" )
+        bowtiealignedpercent=$(grep -Po "# reads with at least one reported alignment: [0-9]+ \([0-9]+.[0-9]+%\)" ${opdpath}${metrics} | grep -Po "[0-9]+.[0-9]+%" )
+        bowtiefailed=$(grep -Po "# reads that failed to align: [0-9]+" ${opdpath}${metrics} | grep -Po "[0-9]+" )
+        bowtiefailedpercent=$(grep -Po "# reads that failed to align: [0-9]+ \([0-9]+.[0-9]+%\)" ${opdpath}${metrics} | grep -Po "[0-9]+.[0-9]+%" )
+        bowtiesuppressed=$(grep -Po "# reads with alignments suppressed due to -m: [0-9]+ \([0-9]+.[0-9]+%\)" ${opdpath}${metrics} | grep -Po "[0-9]+ " )
+        bowtiesuppressedpercent=$(grep -Po "# reads with alignments suppressed due to -m: [0-9]+ \([0-9]+.[0-9]+%\)" ${opdpath}${metrics} | grep -Po "[0-9]+.[0-9]+%" )
+    fi
+    
+    #print the output
+    echo -e "${i}\t${rawnum}\t${cleannum}\t${cleanpercent}%\t${bowtiealigned}\t${bowtiealignedpercent}\t${bowtiefailed}\t${bowtiefailedpercent}\t${bowtiesuppressed}\t${bowtiesuppressedpercent}" | tee -a $dated_log 
+   ((m++))
+   
+done
+
+rm temp_grep.txt
+
+
+
+##############################
+#If cleanupOff is called, exit
+##############################
+if [[ $cleanoff == called ]]
+then
+    exit
+
+fi
+    
+    
+    
+##############################
+#CLEANUP LOOP
+##############################
+
+#Print report
+printf "\n\n"  | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+echo "CLEANING UP:" | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+    
+#for each file, compress or remove a bunch of stuff.
+for i in ${list[@]}
+do
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Cleaning up ${i}\n" | tee -a $dated_log $commands_log
+    
+    #Get some file names
+    opdpath="${i}_opd/"
+    trimfile="1_${i}_trim.fastq"
+    cleanfile="2_${i}_clean.fastq"
+    samfile="4_${i}_output.sam"
+    unaligned="4_${i}_unaligned.fastq"
+    metrics="4_${i}_bowtiemetrics.txt"
+    bamfile="5_${i}.bam"
+    bam_sorted="6_${i}_sorted"
+    bam_sort_file="6_${i}_sorted.bam"
+    bed_file="7_${i}.bed"
+    
+    #gzip or delete
+    gzip ${i}.fastq
+    gzip $opdpath$trimfile
+    gzip $opdpath$cleanfile
+    gzip $opdpath$2_{i}_artifact.txt
+    gzip $opdpath$bam_sort_file
+    rm $opdpath/$samfile
+    rm $opdpath/$bamfile
+    rm $opdpath/$bed_file
+
+done
+
+mv unmatched.fastq ${list[0]}_unmatched.fastq
