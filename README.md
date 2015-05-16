@@ -17,7 +17,8 @@ There are three steps to execut in the analysis:
 
 
 ## USAGE
-```   Split and Align Mode:
+```
+Split and Align Mode:
        bash autoAnalyzeChipseq_v9.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Split Only Mode:
@@ -28,7 +29,8 @@ There are three steps to execut in the analysis:
 ```
 
 ## MODES
-```   There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
+```
+There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
    --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
                                a single barcode index file. The pipeline then...
                                    0) splits the multiplexed file into single sample files by index
@@ -58,7 +60,8 @@ There are three steps to execut in the analysis:
 ```
 
 ## ARGUMENTS
-```   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
+```
+   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
    <barcodeIndexFile.txt>    This is a file listing the barcodes that are at the 5' end of each sequence string.  It should be in the format:
 
                    #barcode file for the multiplexed sequences generated 11/11/12
@@ -92,6 +95,7 @@ There are three steps to execut in the analysis:
 ```   
 
 ## DEPENDENCIES
-```   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
+```
+   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
 
    Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19```
