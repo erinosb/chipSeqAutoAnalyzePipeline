@@ -2,23 +2,24 @@
 
 This is the basic pipeline I use for analyzing multiplexed ChIP-seq datasets
 
-There are three steps to execut in the analysis:
+There are two steps to execut in the analysis:
 
     chipSeqAnalyzeStep1.sh
     
     chipSeqAnalyzeStep2.sh
 
+See the instructions for each of these programs below.
 
 # chipSeqAnalyzeStep1.sh
   Copyright (c) 2015, Erin Osborne Nishimura
 
-## PROGRAM
+### PROGRAM
    autoAnalyzeChipseq_v9.sh - To automate the quality control & alignment of multiplexed ChIP-seq data
 
 
-## USAGE
+### USAGE
 ```
-Split and Align Mode:
+   Split and Align Mode:
        bash autoAnalyzeChipseq_v9.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Split Only Mode:
@@ -28,7 +29,7 @@ Split and Align Mode:
        bash autoAnalyzeChipseq_v9.sh --alignOnly \[options\] <input1.fastq> input2.fastq
 ```
 
-## MODES
+### MODES
 ```
 There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
    --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
@@ -59,7 +60,7 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
                                    8) Convert .bed into .bw file using bedToBw.sh dependency script
 ```
 
-## ARGUMENTS
+### ARGUMENTS
 ```
    <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
    <barcodeIndexFile.txt>    This is a file listing the barcodes that are at the 5' end of each sequence string.  It should be in the format:
@@ -73,7 +74,7 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
    <input1.fastq>          This is an input .fastq file 
 ```
 
-## OPTIONS
+### OPTIONS
 ```
    --splitOnly                      Runs in splitOnly mode. Suppresses analysis.
    --alignOnly                      Runs in alignOnly mode. Suppresses splitting sequencefiles
@@ -94,7 +95,7 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
                                        /proj/dllab/Erin/sequences/solexa-library-seqs.fasta
 ```   
 
-## DEPENDENCIES
+### DEPENDENCIES
 ```
    Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
 
