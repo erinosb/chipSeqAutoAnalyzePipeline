@@ -1,7 +1,8 @@
 #! /bin/sh/
+##################################################################################################
 
-################################################
-#  autoAnalyzeChipseq_v9.sh
+#####################  HEADER  ###################################################################
+#  chipSeqAnalyzeStep1.sh
 #  Copyright (c) 2015, Erin Osborne Nishimura
 #
 #PROGRAM
@@ -61,23 +62,41 @@
 #                   EO37	ACAGTTG
 #   <input1.fastq>          This is an input .fastq file 
 #
+#
 #OPTIONS
 #
 #   --splitOnly                 Runs in splitOnly mode. Suppresses analysis.
 #   --alignOnly                 Runs in alignOnly mode. Suppresses splitting sequencefiles
 #   --qualityOff                Suppresses quality score reports
-#   --extension <n>             Specify the length bp to extend reads in the .wig file
-#   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
-#   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>
 #   --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
-#                               It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files
+#                                 It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files
+#   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
+#
+#   --extension <n>             Specify the length bp to extend reads in the .wig file. Default = 100
+#   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
+#
+#   --chrlength                 The bedToBw.sh program needs to know how long each chromsome is. Specify the location of the chromosome length file. Default =
+#                                       "/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"
+#   --bowtiepath                Bowtie1 requires the path location of where the .bwq files are contained. Default =
+#                                       "/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"
+#   --primeradapter             Tagdust needs a .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
+#                                 remove these sequences. Default =
+#                                       "/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"
 #   
-#   
+#
+#DEPENDENCIES
+#   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
+#
+#   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19 
+#
+#
 #AUTHOR
 #   Erin Osborne Nishimura
 #
+#
 #DATE
-#   April 11, 2015
+#   May 16, 2015
+#
 #
 #BUGS/FUTURE EXPANSION
 #   -- check whether certain modules have been loaded;
@@ -86,35 +105,36 @@
 #
 #
 #
-#################################################
+##################################################################################################
 
-#####################   SET VARIABLES   ######################
+#####################   SET VARIABLES   ##########################################################
 solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    #tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this
                                                                                   #variable to a path pointing to that file.
 #bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
                                                                                   #name of those index files.
                                                                                   #Also, the genome sequence (a .fa file) also needs to be in that same directory.
 bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"
-
 chromlength="/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"               #bedToBw.sh needs to know how long each chromosome is
 ##################################################################################################
 
+#####################  USAGE   ###################################################################
 
+usage="  chipSeqAnalyzeStep1.sh
+  Copyright (c) 2015, Erin Osborne Nishimura
 
-usage="
 PROGRAM
    autoAnalyzeChipseq_v9.sh - To automate the quality control & alignment of multiplexed ChIP-seq data
-   Copyright (c) 2015, Erin Osborne Nishimura
+
 
 USAGE
-    Split and Align Mode:
-        bash autoAnalyzeChipseq_v9.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
-    OR
-    Split Only Mode:
-        bash autoAnalyzeChipseq_v9.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
-    OR
-    Align Only Mode:
-        bash autoAnalyzeChipseq_v9.sh --alignOnly [options] <input1.fastq> input2.fastq
+   Split and Align Mode:
+       bash autoAnalyzeChipseq_v9.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+   OR
+   Split Only Mode:
+       bash autoAnalyzeChipseq_v9.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+   OR
+   Align Only Mode:
+       bash autoAnalyzeChipseq_v9.sh --alignOnly [options] <input1.fastq> input2.fastq
 
 
 MODES
@@ -157,24 +177,40 @@ ARGUMENTS
                    EO35	GATCTTG
                    EO36	TCAGGAC
                    EO37	ACAGTTG
-                   
    <input1.fastq>          This is an input .fastq file 
+
 
 OPTIONS
 
-   --splitOnly                 Runs in splitOnly mode. Suppresses analysis.
-   --alignOnly                 Runs in alignOnly mode. Suppresses splitting sequencefiles
-   --qualityOff                Suppresses quality score reports
-   --extension <n>             Specify the length bp to extend reads in the .wig file
-   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
-   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>
-   --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
-                               It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files"
+   --splitOnly                      Runs in splitOnly mode. Suppresses analysis.
+   --alignOnly                      Runs in alignOnly mode. Suppresses splitting sequencefiles
+   --qualityOff                     Suppresses quality score reports
+   --cleanOff                       Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
+                                      It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files
+   --trimOff                        Suppresses trimming six basepairs of multiplexing indices
 
+   --extension <n>                  Specify the length bp to extend reads in the .wig file. Default = 100
+   -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
+   --logfile
+   --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
+                                       /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
+   --bowtiepath </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
+                                       /proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10
+   --primers <file.txt>             A .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
+                                      remove these sequences as a quality control step. Default =
+                                       /proj/dllab/Erin/sequences/solexa-library-seqs.fasta
+   
 
-#################
+DEPENDENCIES
+   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
+
+   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19"
+
+##################################################################################################
+
+#####################
 #PRE-PROCESSING: Start Log files, load modules, Check errors, get filenames, set options
-#################
+#####################
 
 
 
@@ -250,6 +286,18 @@ do
         ;;
         --cleanOff) shift;
         cleanoff="called"
+        ;;
+        --primers) shift;
+        solexa_primer_adapter=${1:--}
+        shift
+        ;;
+        --bowtiepath) shift;
+        bowtie1path=${1:--}
+        shift
+        ;;
+        --chrlength) shift;
+        chromlength=${1:--}
+        shift
         ;;
     esac
 done
@@ -459,20 +507,16 @@ do
     then
         #1) fastx_trim:
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-        echo "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:" | tee -a $dated_log $commands_log
         cmd1="fastx_trimmer -f 9 -Q 33 -i "$i"."$fileextension" -o "$opdpath$trimfile
-        printf "\t$cmd1" 2>&1 | tee -a $dated_log $commands_log
-        #echo $cmd1 2>&1 | tee -a $dated_log $commands_log
+        echo -e "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:\n\t$cmd1" | tee -a $dated_log $commands_log
         fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
         $cmd1  2>&1 | tee -a $dated_log
     fi
 
     #2) tagdust
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:" | tee -a $dated_log $commands_log
     cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$opdpath$trimfile
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd2 2>&1 | tee -a $dated_log $commands_log
+    echo "  Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
     $cmd2  2>&1 | tee -a $dated_log
 
     #3) fastqc_report
@@ -481,7 +525,7 @@ do
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         
         cmd_mkdir="mkdir "$opdpath"3_"${i}"_fastqc_opd"
-        echo $cmd_mkdir 2>&1 | tee -a $dated_log $commands_log
+        echo $cmd_mkdir | tee -a $dated_log $commands_log
         $cmd_mkdir  2>&1 | tee -a $dated_log
         
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
@@ -654,6 +698,7 @@ do
     opdpath="${i}_opd/"
     trimfile="1_${i}_trim.fastq"
     cleanfile="2_${i}_clean.fastq"
+    artifact_file="2_${i}_artifact.fastq"
     samfile="4_${i}_output.sam"
     unaligned="4_${i}_unaligned.fastq"
     metrics="4_${i}_bowtiemetrics.txt"
@@ -661,16 +706,17 @@ do
     bam_sorted="6_${i}_sorted"
     bam_sort_file="6_${i}_sorted.bam"
     bed_file="7_${i}.bed"
-    
+
     #gzip or delete
     gzip ${i}.fastq 2>&1 | tee -a $dated_log $commands_log
     gzip $opdpath$trimfile 2>&1 | tee -a $dated_log $commands_log
-    gzip $opdpath$cleanfile 2>&1 | tee -a $dated_log $commands_log
-    gzip $opdpath2_${i}_artifact.fastq 2>&1 | tee -a $dated_log $commands_log
+    #gzip $opdpath$cleanfile 2>&1 | tee -a $dated_log $commands_log
+    gzip $opdpath$artifact_file 2>&1 | tee -a $dated_log $commands_log
     gzip $opdpath$bam_sort_file 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath/$samfile 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath/$bamfile 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath/$bed_file 2>&1 | tee -a $dated_log $commands_log
+    rm $opdpath$cleanfile 2>&1 | tee -a $dated_log $commands_log
 
 done
 
