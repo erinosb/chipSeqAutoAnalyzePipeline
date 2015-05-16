@@ -1,9 +1,11 @@
 # chipSeqAutoAnalyzePipeline
 
-This is the basic initial pipeline we use for analyzing multiplexed ChIP-seq datasets
+This is the basic pipeline I use for analyzing multiplexed ChIP-seq datasets
 
-There are three steps to executign the analysis:
+There are three steps to execut in the analysis:
+
     chipSeqAnalyzeStep1.sh
+    
     chipSeqAnalyzeStep2.sh
 
 
@@ -15,18 +17,18 @@ There are three steps to executign the analysis:
 
 
 ## USAGE
-   Split and Align Mode:
-       bash autoAnalyzeChipseq_v9.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+```   Split and Align Mode:
+       bash autoAnalyzeChipseq_v9.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Split Only Mode:
-       bash autoAnalyzeChipseq_v9.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+       bash autoAnalyzeChipseq_v9.sh --splitOnly \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Align Only Mode:
-       bash autoAnalyzeChipseq_v9.sh --alignOnly [options] <input1.fastq> input2.fastq
-
+       bash autoAnalyzeChipseq_v9.sh --alignOnly \[options\] <input1.fastq> input2.fastq
+```
 
 ## MODES
-   There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
+```   There are three modes for use... --splitNAlign mode (default), --splitOnly and --alignOnly mode
    --splitNAlign (default)      This mode uses as input a single homebrew multiplexed .txt file and
                                a single barcode index file. The pipeline then...
                                    0) splits the multiplexed file into single sample files by index
@@ -53,10 +55,10 @@ There are three steps to executign the analysis:
                                    6) Sort .bam into \_sorted.bam using samtools sort
                                    7) Convert \_sorted.bam into .bed using bedtools
                                    8) Convert .bed into .bw file using bedToBw.sh dependency script
-
+```
 
 ## ARGUMENTS
-   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
+```   <inputFile.txt>           This is the file from the sequencing facility. It is a fastq file containing Illumina sequencing reads generated from multiplexed samples
    <barcodeIndexFile.txt>    This is a file listing the barcodes that are at the 5' end of each sequence string.  It should be in the format:
 
                    #barcode file for the multiplexed sequences generated 11/11/12
@@ -66,43 +68,30 @@ There are three steps to executign the analysis:
                    EO36	TCAGGAC
                    EO37	ACAGTTG
    <input1.fastq>          This is an input .fastq file 
-
+```
 
 ## OPTIONS
+```
+   --splitOnly                      Runs in splitOnly mode. Suppresses analysis.
+   --alignOnly                      Runs in alignOnly mode. Suppresses splitting sequencefiles
+   --qualityOff                     Suppresses quality score reports
+   --cleanOff                       Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the \_clean.fastq, .sam, .bam, and .bed files.
+                                      It retains the split.fastq.gz, \_trim.fastq.gz, \_sorted.bam.gz, and .bw files
+   --trimOff                        Suppresses trimming six basepairs of multiplexing indices
 
-   --splitOnly                 Runs in splitOnly mode. Suppresses analysis.
-   --alignOnly                 Runs in alignOnly mode. Suppresses splitting sequencefiles
-   --qualityOff                Suppresses quality score reports
-   --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the \_clean.fastq, .sam, .bam, and .bed files.
-                                 It retains the split.fastq.gz, \_trim.fastq.gz, \_sorted.bam.gz, and .bw files
-   --trimOff                   Suppresses trimming six basepairs of multiplexing indices
-
-   --extension <n>             Specify the length bp to extend reads in the .wig file. Default = 100
-   -p <n>                      Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
-
-   --chrlength                 The bedToBw.sh program needs to know how long each chromsome is. Specify the location of the chromosome length file. Default =
-                                       "/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"
-   --bowtiepath                Bowtie1 requires the path location of where the .bwq files are contained. Default =
-                                       "/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"
-   --primeradapter             Tagdust needs a .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
-                                 remove these sequences. Default =
-                                       "/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"
-   
+   --extension <n>                  Specify the length bp to extend reads in the .wig file. Default = 100
+   -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
+   --logfile
+   --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
+                                       /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
+   --bowtiepath </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
+                                       /proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10
+   --primers <file.txt>             A .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
+                                      remove these sequences as a quality control step. Default =
+                                       /proj/dllab/Erin/sequences/solexa-library-seqs.fasta
+```   
 
 ## DEPENDENCIES
-   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
+```   Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
 
-   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19 
-
-
-## AUTHOR
-   Erin Osborne Nishimura
-
-
-## DATE
-   May 16, 2015
-
-## BUGS/FUTURE EXPANSION
-   -- check whether certain modules have been loaded;
-   -- Auto load all required modules
-   -- toggle between bowtie or bowtie2
+   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19```
