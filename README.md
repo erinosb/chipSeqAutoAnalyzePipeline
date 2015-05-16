@@ -85,7 +85,6 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
 
    --extension <n>                  Specify the length bp to extend reads in the .wig file. Default = 100
    -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
-   --logfile
    --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
                                        /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
    --bowtiepath </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
@@ -100,3 +99,13 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
    Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
 
    Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19```
+   
+   
+### BUGS/FUTURE EXPANSION
+```
+   -- check whether certain modules have been loaded, exit with an error if they are missing.
+   -- Auto load all required modules
+   -- toggle between bowtie or bowtie2
+   -- add an option for an output directory
+   -- add an option for a 'nickname' for the logfiles
+```
