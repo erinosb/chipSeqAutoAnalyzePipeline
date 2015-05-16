@@ -53,6 +53,7 @@
 #   -- check whether certain modules have been loaded
 #   -- Auto load all required modules
 #   -- toggle between bowtie or bowtie2
+#   -- can't get java genomics toolkit to run on my machine without full path
 #
 #
 
@@ -87,14 +88,19 @@ THE GUIDE FILE
 
 OPTIONS
    *--guide <guidefile.txt>          
-   *--extension <n>             Specify the length bp to extend reads in the .wig file. default = 150
-    --cleanOff                  Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the _clean.fastq, .sam, .bam, and .bed files.
+    --extension <n>             Specify the length bp to extend reads in the .wig file. default = 150
+    --cleanOff                  Runs without the cleanup mode loop at the very end.
                                 It retains the split.fastq.gz, _trim.fastq.gz, _sorted.bam.gz, and .bw files
     --scale <n>                 UCSC genome browser track information will include a line to turn autoscaling OFF and to set the scale value to <n>. default = 30
     -p <n>                      Runs java-genomics-toolkit in parallel. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n> -R \"span[hosts=1]\". Default=1
+    --threshold <n>             A minimum MACS2 peak score for thresholding significant peaks. MACS2 will run and capture all peaks with a score above 5. If a threshold higher than 5 is defined here, that will be the minimum peak score for generating uploadable .bam and .bam.bai files. Default is 10.
     --chromlength </path/file>  Path to the ce_chrom_length.txt file. default = /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
     --uploadpath </path/>       Path to an optional upload file. default = /proj/lieblab/genome_browser/ErinUCSC/
-"
+
+DEPENDENCIES
+   Requires bedtools, samtools, macs2, java-genomics-toolkit, 
+
+   Developed with versions: bedtools/2.22.1; samtools/0.1.19"
 
 
 
@@ -116,21 +122,20 @@ OPTIONS
         dated_track_log=${DATE}_track_upload.log
         
     #Report that the program is running. Report $0.
+        echo -e "\n\n######################################################################"  | tee -a $dated_log
+        printf $(date +"%Y-%m-%d_%H:%M")"\tINITIATED\n" | tee -a $dated_log $commands_log
         echo "######################################################################"  | tee -a $dated_log
-        printf "INITIATED\n" | tee -a $dated_log
-        echo "######################################################################"  | tee -a $dated_log
-        printf $(date +"%Y-%m-%d_%H:%M")"\tInitiated with the following command:\n\t\t$0 $*\n" | tee -a $dated_log 
+        printf $(date +"%Y-%m-%d_%H:%M")"\tInitiated with the following command:\n\t$0 $*\n" | tee -a $dated_log 
         
     #Make sure the proper modules are uploaded:
         echo -e "\n\n######################################################################"  | tee -a $dated_log
-        printf "PRE-PROCESSING\n" | tee -a $dated_log
+        printf $(date +"%Y-%m-%d_%H:%M")"\tPRE-PROCESSING\n" | tee -a $dated_log
         echo "######################################################################"  | tee -a $dated_log
-        printf $(date +"%Y-%m-%d_%H:%M")"\tRequired modules: samtools, bedtools, macs2" | tee -a $dated_log  
+        printf $(date +"%Y-%m-%d_%H:%M")"\tDependencies: required samtools, bedtools, macs2, java-genomics-toolkit" | tee -a $dated_log  
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tThis pipeline will run with the following modules:\n" | tee -a $dated_log 
         source /nas02/apps/Modules/default/init/bash
         module list  2>&1 | tee -a $dated_log
-       # macs2 --version
-       # bash toolRunner.sh --version
+        macs2 --version
         printf "\n\n" | tee -a $dated_log
 
     #Warn or die if specified options are not present:
@@ -148,6 +153,7 @@ OPTIONS
         scale=30
         celength="/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"
         parallel=1
+        threshold=10
         uppath="/proj/lieblab/genome_browser/ErinUCSC/"
         
         for n in $@
@@ -177,18 +183,22 @@ OPTIONS
             uppath=${1:--}
             shift
             ;;
+            --threshold) shift;
+            threshold=${1:--}
+            shift
+            ;;
         esac
     done
     
 
-        #Print out the intput files and parameters
+    #Print out the intput files and parameters
         echo -e $(date +"%Y-%m-%d_%H:%M")"\tOPTIONS CAPTURED" | tee -a $dated_log 
         echo -e "\tGuidefile is:\t\t\t${guidefile}" | tee -a $dated_log 
         echo -e "\tBase pair extension is:\t\t${extension}" | tee -a $dated_log 
         echo -e "\tUCSC Track Scale is:\t\t${scale}" | tee -a $dated_log
-        echo -e "\tChromosome Length file is:\t\t${celength}" | tee -a $dated_log
+        echo -e "\tChromosome Length file is:\t${celength}" | tee -a $dated_log
     
-        #exit if required input parameters are missing
+    #exit if required input parameters are missing
         if [ -z "$guidefile" ]
         then
             echo "ERROR: No options or input files supplied:\n" | tee -a $dated_log 
@@ -212,22 +222,22 @@ OPTIONS
         uniqinputarray=($(awk 'NF &&  $1!~/^#/{print $4}' $guidefile | uniq ))
         color=($(awk 'NF &&  $1!~/^#/{print $5}' $guidefile ))
         
-        echo -e "\n"$(date +"%Y-%m-%d_%H:%M")"Files to process:" | tee -a $dated_log
-        echo -e "\tSorted bam files for peak finding: ${filearray[*]}" | tee -a $dated_log 
-        echo -e "\tReplicates: ${reparray[*]}" | tee -a $dated_log 
-        echo -e "\tUnique Replicates: ${uniqreparray[*]}" | tee -a $dated_log 
-        echo -e "\tSamples: ${samplearray[*]}" | tee -a $dated_log 
-        echo -e "\tInput samples: ${inputarray[*]}" | tee -a $dated_log
-        echo -e "\tUnique Inputs: ${uniqinputarray[*]}" | tee -a $dated_log
+        echo -e "\n"$(date +"%Y-%m-%d_%H:%M")"\tFiles to process:" | tee -a $dated_log
+        echo -e "\tSorted bam files for peak finding: \t${filearray[*]}" | tee -a $dated_log 
+        echo -e "\tReplicates: \t${reparray[*]}" | tee -a $dated_log 
+        echo -e "\tUnique Replicates: \t${uniqreparray[*]}" | tee -a $dated_log 
+        echo -e "\tSamples: \t${samplearray[*]}" | tee -a $dated_log 
+        echo -e "\tInput samples: \t${inputarray[*]}" | tee -a $dated_log
+        echo -e "\tUnique Inputs: \t${uniqinputarray[*]}" | tee -a $dated_log
 
 
 ##########################
 #2 Run MACS2
 ##########################
     echo -e "\n\n######################################################################"  | tee -a $dated_log
-    printf "PEAK CALLING\n" | tee -a $dated_log
+    printf $(date +"%Y-%m-%d_%H:%M")"\tPEAK CALLING\n" | tee -a $dated_log
     echo "######################################################################"  | tee -a $dated_log
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tMACS2 initiated:\n" | tee -a $dated_log 
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tMACS2 peak calling initiated:\n" | tee -a $dated_log 
     
     #Set a counter
     m=0
@@ -235,7 +245,10 @@ OPTIONS
     #iterate over the counter for each file in the filearray:
     while [ ${m} -lt ${#filearray[@]} ]; do
         
-        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tMACS2 analysis of samples:\n" | tee -a $dated_log
+        echo -e "\n\n######################################################################"  | tee -a $dated_log
+        printf $(date +"%Y-%m-%d_%H:%M")"\tMACS2 on ${filearray[$m]}\n" | tee -a $dated_log
+        echo "######################################################################"  | tee -a $dated_log
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tMACS2: peak calling of sample ${filearray[$m]}:\n" | tee -a $dated_log
         #Figure out the chip_bam and input_bam paths and files:
         chip_bam=${filearray[$m]}_opd/6_${filearray[$m]}_sorted.bam
         input_bam=${inputarray[$m]}_opd/6_${inputarray[$m]}_sorted.bam
@@ -250,39 +263,50 @@ OPTIONS
                 gunzip ${input_bam}.gz  2>&1 | tee -a $dated_log
             fi
         
-        echo -e "\t\tchip_bam file is:\t${chip_bam}"
-        echo -e "\t\tinput_bam file is:\t${input_bam}"
+        echo -e "\tchip_bam file is:\t${chip_bam}"
+        echo -e "\tinput_bam file is:\t${input_bam}"
         
         #Call MACS2:
-        
         quality=0.005
-        cmd1="macs2 -t ${chip_bam} -c ${input_bam} -f BAM -n ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality} -g ce --nomodel -q ${quality}"
-        echo -e "${cmd1}\n" | tee -a $dated_log
-        $cmd1 2>&1 | tee -a $dated_log
+        shiftsize=$((extension / 2))
+        echo -e "\tminimum quality score is:\t${quality}"
+        echo -e "\tshiftsize is:\t${shiftsize}"
         
-        #Convert MACS2_peak.bed files to .bam files
-        cmd100="bash /proj/dllab/Erin/executables/101_bedToIndexBam/bedToIndexedBam.sh ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed"
-        echo -e "${cmd100}"  | tee -a $dated_log
+        cmd1="macs2 -t ${chip_bam} -c ${input_bam} -f BAM -n ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality} -g ce --nomodel --shiftsize=${shiftsize} -q ${quality}"
+        echo -e "\t${cmd1}\n" | tee -a $dated_log
+        #$cmd1 2>&1 | tee -a $dated_log
+        
+        #Threshold for a given quality score:
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tthreshold_macs2_peaks:  Selecting peaks with quality above ${threshold} in sample ${filearray[$m]}:\n" | tee -a $dated_log
+        $cmd99="perl threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold}"
+        echo -e "\t${cmd99}\n" | tee -a $dated_log
+        perl threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold}
+        
+        #Convert Thresholded _greater.bed file to an indexed bam file an dupload to the upload area:
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tbedToIndexedBam:  Converting thresholded peaks files from .bed to .bam:\n" | tee -a $dated_log
+        cmd100="bash bin/bedToIndexedBam.sh ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}.bed"
+        echo -e "\t${cmd100}"  | tee -a $dated_log
         $cmd100 2>&1 | tee -a $dated_log
         
         #Move .bam files and .bam.bai files to upload area:
-        cmd101="cp ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam ${uppath}"
-        echo -e "${cmd101}"  | tee -a $dated_log
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tcp:  moving peaksfiles to the upload area ${uppath}:\n" | tee -a $dated_log
+        cmd101="cp ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${uppath}"
+        echo -e "\t${cmd101}"  | tee -a $dated_log
         $cmd101 2>&1 | tee -a $dated_log
         
-        cmd101="cp ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam.bai ${uppath}"
-        echo -e "${cmd101}\n"  | tee -a $dated_log
+        cmd101="cp ${filearray[$m]}_opd/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai ${uppath}"
+        echo -e "$\t{cmd101}\n"  | tee -a $dated_log
         $cmd101 2>&1 | tee -a $dated_log
         
-        #Make a URL and trackfile entry for the MACS_peaks.bam file:
+        #Make a URL entry for the MACS_peaks.bam file:
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tURL:  creating an entry in the URL logfile ${dated_url_log}:\n" | tee -a $dated_log
         echo -e "\tURL: Including 9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam in the url file $dated_url_log." | tee -a $dated_log
         echo -e "http://trackhubs.its.unc.edu/lieblab/ErinUCSC/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam" | tee -a $dated_url_log $dated_log
         
         #Make a TRACKS file entry for MACS_peaks.bam:
-        
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tTRACKS:  creating an entry in the TRACK file ${dated_log}:\n" | tee -a $dated_track
         rep=${reparray[$m]}
         sample=${samplearray[$m]}
-        
         echo -e "\tTracks: Including 9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam in the track file ${dated_track_log}." | tee -a $dated_log
         echo -e "track name=${sample}_${rep}_macs2 description=9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted bamcolormode=${color[$m]} bigDataUrl=http://trackhubs.its.unc.edu/lieblab/ErinUCSC/9_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam type=bam" | tee -a $dated_track_log $dated_log
         
