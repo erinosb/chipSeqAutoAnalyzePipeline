@@ -212,15 +212,20 @@ DEPENDENCIES
 #PRE-PROCESSING: Start Log files, load modules, Check errors, get filenames, set options
 #####################
 
-
-
 #Start logfiles
 DATE=$(date +"%Y-%m-%d_%H%M")
 dated_log=${DATE}.log
 commands_log=${DATE}_commands.log
+
+printf "\n\n"  | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+printf $(date +"%Y-%m-%d_%H:%M")"\tRUNNING\n" | tee -a $dated_log $commands_log
+echo "######################################################################"  | tee -a $dated_log $commands_log
+
+
 printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
 
-echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command: \n\t\t$0 $*\n" | tee -a $dated_log $commands_log
+echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command:\n\t$0 $*\n" | tee -a $dated_log $commands_log
 
 printf "This pipeline requires the following modules: samtools, bedtools, bowtie, fastqc"
 
@@ -390,9 +395,11 @@ then
     printf "\n\t\t"
     if [[ ${multi} == *.gz ]]
     then
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\tFASTX Toolkit: Splitting multiplexed fastq file based on barcode indices.\n\t"
         echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
         zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
     else
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\tFASTX Toolkit: Splitting multiplexed fastq file based on barcode indices.\n\t"
         echo "cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
         cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log        
     fi
@@ -426,7 +433,7 @@ fileextension=
 if [[ $alignonly == "called" ]]
 then
     input_files=$*
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
     printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
     for i in $input_files
         do
@@ -449,7 +456,7 @@ fi
 if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
 then
     list=($(grep "\#" -v ${bar} | awk '{print $1}'))
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t"
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
     printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
     for i in "${list[@]}"
         do
@@ -500,48 +507,46 @@ do
     echo "######################################################################"  | tee -a $dated_log $commands_log
     
     #Make Output Directory
-    printf "mkdir $opd" 2>&1 | tee -a $dated_log 
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "mkdir: Make output directory.\n\tmkdir $opd" | tee -a $dated_log $commands_log
     mkdir $opd 2>&1 | tee -a $dated_log
 
     if [[ $trimoff == "notcalled" ]]
     then
         #1) fastx_trim:
-        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         cmd1="fastx_trimmer -f 9 -Q 33 -i "$i"."$fileextension" -o "$opdpath$trimfile
-        echo -e "  fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:\n\t$cmd1" | tee -a $dated_log $commands_log
-        fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log 
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo -e "fastx_trimmer: Trimming barcode indexes from ${i}.${fileextension} using command:\n\t$cmd1" | tee -a $dated_log $commands_log
+        fastx_clipper -h | grep 'FASTX' - 2>&1 | tee -a $dated_log $commands_log
         $cmd1  2>&1 | tee -a $dated_log
     fi
 
     #2) tagdust
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$opdpath$trimfile
-    echo "  Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
     $cmd2  2>&1 | tee -a $dated_log
 
     #3) fastqc_report
     if [[ $qualityoff == "notcalled" ]]
     then
-        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-        
         cmd_mkdir="mkdir "$opdpath"3_"${i}"_fastqc_opd"
-        echo $cmd_mkdir | tee -a $dated_log $commands_log
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo -e "  mkdir: output directory for FastQC results\n\t$cmd_mkdir" | tee -a $dated_log $commands_log
         $cmd_mkdir  2>&1 | tee -a $dated_log
         
-        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-        echo "  Fastqc:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory." | tee -a $dated_log $commands_log
-        fastqc --version 2>&1 | tee -a $dated_log
         cmd3="fastqc -o "$opdpath"3_"$i"_fastqc_opd --noextract "$opdpath$cleanfile
-        printf "\t$cmd3" 2>&1 | tee -a $dated_log $commands_log
+        printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+        echo -e "FastQC:  Quality control from $cleanfile analyzed using command below. Output $i _fastqc_opd directory.\n\t$cmd3" | tee -a $dated_log $commands_log
+        fastqc --version 2>&1 | tee -a $dated_log
         $cmd3  2>&1 | tee -a $dated_log
     fi
     
     
     #4) bowtie
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile" | tee -a $dated_log $commands_log
     cmd4="bowtie -q -S --nomaqround -m 1 -p $parallel --best --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
-    printf "\t $cmd4" 2>&1 | tee -a $dated_log $commands_log
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile\n\t$cmd4" | tee -a $dated_log $commands_log
     $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
     
     ##4) bowtie2
@@ -554,36 +559,29 @@ do
     #$cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
 #    #5) samtools compress
 
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Samtools:  Compressing $samfile into $bamfile using command:" | tee -a $dated_log $commands_log
     cmd5="samtools view -bS -o "$opdpath$bamfile" "$opdpath$samfile
-    printf "\t$cmd5" 2>&1 | tee -a $dated_log $commands_log
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Samtools:  Compressing $samfile into $bamfile using command:\n\t$cmd5" | tee -a $dated_log $commands_log
     $cmd5  2>&1 | tee -a $dated_log
 
     #6) samtools sort
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "  Samtools:  Sorting $bamfile into $bam_sort_file using command:" | tee -a $dated_log $commands_log
     cmd6="samtools sort "$opdpath$bamfile" "$opdpath$bam_sorted
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd6 2>&1 | tee -a $dated_log $commands_log
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Samtools:  Sorting $bamfile into $bam_sort_file using command:\n\t$cmd6" | tee -a $dated_log $commands_log
     $cmd6  2>&1 | tee -a $dated_log
     
     #7) bedtools, convert .bam -> .bed
-    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "   Bedtools:  Converting $bam_sort_file to $bed_file using command:" | tee -a $dated_log $commands_log
     cmd7="bedtools bamtobed -i "$opdpath$bam_sort_file" > "$opdpath$bed_file
-
-    printf "\t" 2>&1 | tee -a $dated_log $commands_log
-    echo $cmd7 2>&1 | tee -a $dated_log $commands_log
-    bedtools --version 2>&1 | tee -a $dated_log 
+    printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
+    echo -e "Bedtools:  Converting $bam_sort_file to $bed_file using command:\n\t$cmd7" | tee -a $dated_log $commands_log
+    bedtools --version 2>&1 | tee -a $dated_log $commands_log
     bedtools bamtobed -i $opdpath$bam_sort_file > $opdpath$bed_file 2>&1 | tee -a $dated_log
     
     #8) bedToBw.sh: convert .bed -> .bw
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
-    echo "   bedToBw:  Converting $bed_file to $bw_file using command:" | tee -a $dated_log $commands_log
     inputbedfile="${i}_opd/7_${i}.bed"
-    cmd8="bedToBw.sh $inputbedfile $extension $chromlength -n -bw"
-    echo -e "\t$cmd8\n" | tee -a $dated_log $commands_log
+    cmd8="bash bin/bedToBw.sh $inputbedfile $extension $chromlength -n -bw"
+    echo -e "bedToBw:  Converting $bed_file to $bw_file using command:\n\t$cmd8" | tee -a $dated_log $commands_log
     eval $cmd8 2>&1 | tee -a $dated_log
     mv "${i}_opd/7_${i}x${extension}n.bw" "${i}_opd/8_${i}x${extension}n.bw" 2>&1 | tee -a $dated_log
     
@@ -609,7 +607,7 @@ rawreads=($(awk '{print $2}' temp_grep.txt))
 
 
 #Start collecting all the data with this header: 
-echo -e "Name\t#Rawreads\t#cleanReads\tPercentCleanReads\t#bowtieMappedReads\tMappedPercent\t#BowtieFailedReads\tFailedPercent\t#BowtieSuppressed\tSuppressedPercent"  | tee -a $dated_log 
+echo -e "Name\t#Rawreads\t#cleanReads\tPercentCleanReads\t#bowtieMappedReads\tMappedPercent\t#BowtieFailedReads\tFailedPercent\t#BowtieSuppressed\tSuppressedPercent"  | tee -a $dated_log $commands_log
 m=0
 
 #Loop through and quantify summarizing stats:
@@ -707,16 +705,21 @@ do
     bam_sort_file="6_${i}_sorted.bam"
     bed_file="7_${i}.bed"
 
-    #gzip or delete
+    #gzip
     gzip ${i}.fastq 2>&1 | tee -a $dated_log $commands_log
     gzip $opdpath$trimfile 2>&1 | tee -a $dated_log $commands_log
     #gzip $opdpath$cleanfile 2>&1 | tee -a $dated_log $commands_log
     gzip $opdpath$artifact_file 2>&1 | tee -a $dated_log $commands_log
     gzip $opdpath$bam_sort_file 2>&1 | tee -a $dated_log $commands_log
+    
+    #delete
     rm $opdpath/$samfile 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath/$bamfile 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath/$bed_file 2>&1 | tee -a $dated_log $commands_log
     rm $opdpath$cleanfile 2>&1 | tee -a $dated_log $commands_log
+    
+    #move
+    mv ${i}.fastq.gz ${opdpath} 2>&1 | tee -a $dated_log $commands_log
 
 done
 
