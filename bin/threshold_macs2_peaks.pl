@@ -1,4 +1,4 @@
-#! /usr/bin/perl
+#!/usr/bin/perl 
 use strict;
 use warnings;
 use Getopt::Long;
@@ -64,6 +64,9 @@ if ($list or $bed) {
     print "score is $score\n";
     print "list is $list\n";
     print "bed is $bed\n";
+    print "pwd is ";
+    print `pwd`;
+    print "\n";
 }
 else{
     die("Error in command line arguments\n. bed files or a list of bed files required");
@@ -113,14 +116,14 @@ sub threshold {
     my ($score_ref, $bed_ref) = @_;
     
     #Check for infile
-    unless (open (BED, $$bed_ref)){
+    unless (open (BED, '<', $$bed_ref)){
         print "cannot open bed file in bedlist\n";
         exit;
     }
     
     #Generate outfile
     my @bed_name_parse = split(".bed", $$bed_ref);
-    my $outbed = $bed_name_parse[0] . "_greater" . $$score_ref . ".bed";
+    my $outbed = $bed_name_parse[0] . "_gt" . $$score_ref . ".bed";
     
     unless (open(OUT, "> $outbed")){
         print"cannot open output file\n";
@@ -128,7 +131,7 @@ sub threshold {
     }
     
     #Print out what is happening:
-    print "PROCESSING FILE:\n\tBed file to process:\t$$bed_ref\n\tMinimumScore:\t\t$$score_ref\n\tOutputfile:\t\t$outbed.\n";
+    print "PROCESSING FILE:\n\tBed file to process:\t$$bed_ref\n\tMinimumScore:\t\t$$score_ref\n\tOutputfile:\t\t$outbed\n";
     
     #Open the infile and go through each .bed entry:
     while (my $newline = <BED> ) {
