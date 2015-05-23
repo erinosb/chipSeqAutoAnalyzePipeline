@@ -282,18 +282,18 @@ DEPENDENCIES
         
         cmd1="macs2 -t ${chip_bam} -c ${input_bam} -f BAM -n ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality} -g ce --nomodel --shiftsize=${shiftsize} -q ${quality}"
         echo -e "\t${cmd1}\n" | tee -a $dated_log
-        #$cmd1 2>&1 | tee -a $dated_log
+        $cmd1 2>&1 | tee -a $dated_log
         
         #Threshold for a given quality score:
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tthreshold_macs2_peaks:  Selecting peaks with quality above ${threshold} in sample ${filearray[$m]}:\n" | tee -a $dated_log
-        cmd99="perl bin/threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold}"
+        cmd99="perl /proj/dllab/Erin/executables/chipSeqAnalyze/bin/threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold}"
         echo -e "\t${cmd99}\n" | tee -a $dated_log
-        perl bin/threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold} 2>&1 | tee -a $dated_log
+        perl /proj/dllab/Erin/executables/chipSeqAnalyze/bin/threshold_macs2_peaks.pl --bed ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks.bed --score ${threshold} 2>&1 | tee -a $dated_log
         
         
         #Convert Thresholded _greater.bed file to an indexed bam file an dupload to the upload area:
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tbedToIndexedBam:  Converting thresholded peaks files from .bed to .bam:\n" | tee -a $dated_log
-        cmd100="bash bin/bedToIndexedBam.sh ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}.bed"
+        cmd100="bash /proj/dllab/Erin/executables/chipSeqAnalyze/bin/bedToIndexedBam.sh ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}.bed"
         echo -e "\t${cmd100}"  | tee -a $dated_log
         $cmd100 2>&1 | tee -a $dated_log
         
@@ -475,7 +475,7 @@ DEPENDENCIES
             echo -e "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tjava-genomics-toolkit: Generating Subtraction Wig files between Chip, 8_${chip}x${extension}n.bw, and IgG, 8_${IgG}x${extension}n.bw, samples:" | tee -a $dated_log
             cmd5="bash /proj/dllab/Erin/executables/java-genomics-toolkit-2/java-genomics-toolkit/toolRunner.sh wigmath.Subtract -m ${chip_bw} -s ${igg_bw} -o ${chip}_opd/11_${chip}_over_${IgG}.wig -f -p ${parallel}"
             echo -e "\t${cmd5}" | tee -a $dated_log
-            #$cmd5 2>&1 | tee -a $dated_log
+            $cmd5 2>&1 | tee -a $dated_log
             
             ##Convert to bw:
             echo -e "\n\n"$(date +"%Y-%m-%d_%H:%M")"\twigToBigWig: Generating bigWig file from 11_${chip}_over_${IgG}.wig:" | tee -a $dated_log
