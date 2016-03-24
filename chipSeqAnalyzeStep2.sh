@@ -298,15 +298,16 @@ DEPENDENCIES
         $cmd100 2>&1 | tee -a $dated_log
         
         #Move .bam files and .bam.bai files to upload area:
-        mv ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam
+        mv ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam  2>&1 | tee -a $dated_log
+        echo -3 "mv ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam" 2>&1 | tee -a $dated_log
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tcp:  moving peaksfiles to the upload area ${uppath}:\n" | tee -a $dated_log
         
-        cmd101a="cp ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${uppath}"
+        cmd101a="cp ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam ${uppath}" 2>&1 | tee -a $dated_log
         echo -e "\t${cmd101a}"  | tee -a $dated_log
         $cmd101a 2>&1 | tee -a $dated_log
         
-        mv ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai
-        cmd101b="cp ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai ${uppath}"
+        mv ${filearray[$m]}_opd/09_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai 2>&1 | tee -a $dated_log
+        cmd101b="cp ${filearray[$m]}_opd/10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam.bai ${uppath}" 2>&1 | tee -a $dated_log
         echo -e "\t${cmd101b}"  | tee -a $dated_log
         $cmd101b 2>&1 | tee -a $dated_log
         
@@ -319,8 +320,8 @@ DEPENDENCIES
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tTRACKS:  creating an entry in the TRACK file ${dated_log}:\n" | tee -a $dated_track
         rep=${reparray[$m]}
         sample=${samplearray[$m]}
-        echo -e "\tTracks: Including 10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam in the track file ${dated_track_log}." | tee -a $dated_log
-        echo -e "track name=${sample}_${rep}_macs2 description=10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted bamColorMode=${color[$m]} bigDataUrl=${http}10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted.bam type=bam" | tee -a $dated_track_log $dated_log
+        echo -e "\tTracks: Including 10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam in the track file ${dated_track_log}." | tee -a $dated_log
+        echo -e "track name=${sample}_${rep}_macs2 description=10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_sorted bamColorMode=${color[$m]} bigDataUrl=${http}10_${filearray[$m]}_${inputarray[$m]}_${quality}_peaks_gt${threshold}_sorted.bam type=bam" | tee -a $dated_track_log $dated_log
         
         echo -e "\n\n" | tee -a $dated_log
         #Iterate counter
@@ -365,17 +366,18 @@ DEPENDENCIES
         #Get Sample Name
         sample=${samplearray[$n]}
         
+        outcolor=
         #Get color
         if [[ ${color[$n]} == "blue" ]]; then
-            color="0,0,255"
+            outcolor="0,0,255"
         elif [[ ${color[$n]} == "red" ]]; then
-            color="255,0,0"
+            outcolor="255,0,0"
         elif [[ ${color[$n]} == "green" ]]; then
-            color="0,255,0"
+            outcolor="0,255,0"
         fi
         
         echo -e "\tTracks: Including 8_${chip}x${extension}n.bw in the track file ${dated_track_log}." | tee -a $dated_log
-        echo -e "track name=${sample}_${rep} desc=8_${chip}x${extension}n maxHeightPixels=100:100:11 autoScale=off viewLimits=0:${scale} color=${color} visibility=2 bigDataUrl=${http}8_${chip}x${extension}n.bw type=bigWig" | tee -a $dated_track_log $dated_log
+        echo -e "track name=${sample}_${rep} desc=8_${chip}x${extension}n maxHeightPixels=100:100:11 autoScale=off viewLimits=0:${scale} color=${outcolor} visibility=2 bigDataUrl=${http}8_${chip}x${extension}n.bw type=bigWig" | tee -a $dated_track_log $dated_log
         
         ((n+=1))
     done
@@ -491,14 +493,14 @@ DEPENDENCIES
             printf "\t" $dated_log
             echo -e "${http}11_${chip}_over_${IgG}.bw" | tee -a $dated_url_log $dated_log
             
-            
+            outcolor=
             #Get color
             if [[ ${color[$n]} == "blue" ]]; then
-                color="0,0,255"
+                outcolor="0,0,255"
             elif [[ ${color[$n]} == "red" ]]; then
-                color="255,0,0"
+                outcolor="255,0,0"
             elif [[ ${color[$n]} == "green" ]]; then
-                color="0,255,0"
+                outcolor="0,255,0"
             fi
         
         
@@ -507,7 +509,7 @@ DEPENDENCIES
             sample=${samplearray[$x]}
             echo -e "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tTracks: Including 11_${chip}_over_${IgG}.bw in the track file ${dated_track_log}" | tee -a $dated_log
             printf "\t" $dated_log
-            echo -e "track name=${sample}_${rep}_minus_${IgG} description=11_${chip}_over_${IgG} maxHeightPixels=100:100:11 autoScale=off viewLimits=0:$((scale / 5)) color=${color} visibility=2 bigDataUrl=${http}11_${chip}_over_${IgG}.bw type=bigWig" | tee -a $dated_track_log $dated_log
+            echo -e "track name=${sample}_${rep}_minus_${IgG} description=11_${chip}_over_${IgG} maxHeightPixels=100:100:11 autoScale=off viewLimits=0:$((scale / 5)) color=${outcolor} visibility=2 bigDataUrl=${http}11_${chip}_over_${IgG}.bw type=bigWig" | tee -a $dated_track_log $dated_log
             
             #Remove .wig file
             echo -e "\n\n"$(date +"%Y-%m-%d_%H:%M")"\tCleanup: Removing 11_${chip}_over_${IgG}.wig." | tee -a $dated_log
@@ -537,12 +539,12 @@ DEPENDENCIES
         file=${filearray[$n]}
         input=${inputarray[$n]}
         
-        echo -e "rm ${file}_opd/10_${file}_${input}_0.005_peaks_gt${threshold}.bam" 2>&1 | tee -a $dated_log
-        echo -e "rm ${file}_opd/10_${file}_${input}_0.005_peaks_gt${threshold}.bed" 2>&1 | tee -a $dated_log
+        echo -e "rm ${file}_opd/09_${file}_${input}_0.005_peaks_gt${threshold}.bam" 2>&1 | tee -a $dated_log
+        echo -e "rm ${file}_opd/09_${file}_${input}_0.005_peaks_gt${threshold}.bed" 2>&1 | tee -a $dated_log
         #echo -e "rm ${file}_opd/09_${file}_${input}_0.005_peaks.bed" 2>&1 | tee -a $dated_log
         
-        rm ${file}_opd/10_${file}_${input}_0.005_peaks_gt${threshold}.bam 2>&1 | tee -a $dated_log
-        rm ${file}_opd/10_${file}_${input}_0.005_peaks_gt${threshold}.bed 2>&1 | tee -a $dated_log
+        rm ${file}_opd/09_${file}_${input}_0.005_peaks_gt${threshold}.bam 2>&1 | tee -a $dated_log
+        rm ${file}_opd/09_${file}_${input}_0.005_peaks_gt${threshold}.bed 2>&1 | tee -a $dated_log
         #rm ${file}_opd/09_${file}_${input}_0.005_peaks.bed 2>&1 | tee -a $dated_log
     
         ((n+=1))    

@@ -11,22 +11,22 @@ There are two steps to execut in the analysis:
 See the instructions for each of these programs below.
 
 # chipSeqAnalyzeStep1.sh
-  Copyright (c) 2015, Erin Osborne Nishimura
+  Copyright (c) 2016, Erin Osborne Nishimura
 
 ### PROGRAM
-   autoAnalyzeChipseq_v9.sh - To automate the quality control & alignment of multiplexed ChIP-seq data
+   chipSeqAnalyzeStep1.sh - To automate the quality control & alignment of multiplexed ChIP-seq data
 
 
 ### USAGE
 ```
    Split and Align Mode:
-       bash autoAnalyzeChipseq_v9.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+       bash chipSeqAnalyzeStep1.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Split Only Mode:
-       bash autoAnalyzeChipseq_v9.sh --splitOnly \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+       bash chipSeqAnalyzeStep1.sh --splitOnly \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Align Only Mode:
-       bash autoAnalyzeChipseq_v9.sh --alignOnly \[options\] <input1.fastq> input2.fastq
+       bash chipSeqAnalyzeStep1.sh --alignOnly \[options\] <input1.fastq> input2.fastq
 ```
 
 ### MODES
@@ -82,7 +82,6 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
    --cleanOff                       Runs without the cleanup mode loop at the very end. The cleanup mode loop removes the \_clean.fastq, .sam, .bam, and .bed files.
                                       It retains the split.fastq.gz, \_trim.fastq.gz, \_sorted.bam.gz, and .bw files
    --trimOff                        Suppresses trimming six basepairs of multiplexing indices
-
    --extension <n>                  Specify the length bp to extend reads in the .wig file. Default = 100
    -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
    --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
@@ -98,7 +97,8 @@ There are three modes for use... --splitNAlign mode (default), --splitOnly and -
 ```
    Requires tagdust, fastqc, fastx-toolkit, bowtie1, bedtools, samtools, bedGraphToBigWig
 
-   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.0; bedtools/2.22.1; samtools/0.1.19```
+   Developed with versions: TagDust 1.12; FastQC v0.11.3; bowtie/1.1.2; bedtools/2.25.0; samtools/1.3
+```
    
    
 ### BUGS/FUTURE EXPANSION

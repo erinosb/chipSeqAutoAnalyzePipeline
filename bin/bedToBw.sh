@@ -69,7 +69,7 @@ fi
         
 # 3) Get the genome length. Get this from the sum of the chromosome length file ($3)
         
-        printf "bedToBw:   Get genome size\n"
+        printf "bedToBw:   Getting genome size...\n"
 	
         genome=$(cat $3 | awk '{total+=$2}END{print total}')
 
@@ -79,6 +79,7 @@ fi
 	if [ $4 = "-c" ]; then
 		scale=1
 	elif [ $4 = "-n" ]; then
+                echo "bedToBw:   Getting the number of mapped reads..."
                 mappedreads=$(wc -l $1 | awk '{ print $1}')
                 scale=$(wc -l $1 | awk '{printf "%.2f", '$genome'/('$2'*$1)}')
                 echo -e "bedToBw:   The number of mapped reads is: ${mappedreads}."
@@ -94,19 +95,38 @@ fi
 # 7) Convert to a bedgraph using "genomeCoverageBed" (bedtools)
         final=$2
         n="$((final - rlength))"
-        printf "bedToBw:   Bed file extend by $n bases.\n"
+        #printf "bedToBw:   Bed file extend by $n bases.\n"
         
         printf "bedToBw:   Sorting\n"
-	bedtools sort -i ${1} | bedtools slop -s -i stdin -g ${3} -l 0 -r ${n} | bedtools genomecov -bg -i stdin -g ${3} -scale ${scale} > ${bgout}
-
+	cmd1="bedtools sort -i ${1} > sort_temp.bed"
+        echo -e "\t\t$cmd1"
+        bedtools sort -i ${1} > sort_temp.bed
+        
+        printf "bedToBw:   Extending reads by ${n} bases\n"
+        cmd2="bedtools slop -s -i sort_temp.bed -g ${3} -l 0 -r ${n} > slop_temp.bed"
+        echo -e "\t\t$cmd2"
+        bedtools slop -s -i sort_temp.bed -g ${3} -l 0 -r ${n} > slop_temp.bed
+        
+        printf "bedToBw:   Converting to bedgraph\n"
+        cmd3="bedtools genomecov -bg -i slop_temp.bed -g ${3} -scale ${scale} > ${bgout}"
+        echo -e "\t\t$cmd3"
+        bedtools genomecov -bg -i slop_temp.bed -g ${3} -scale ${scale} > ${bgout}
+        
 
 # 8) Convert bedgraph to a bigwig with bedGraphToBigWig:
         printf "bedToBw:   Converting to bigwig\n"
         
+        cmd4="/proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}"
+        echo -e "\t\t$cmd4"
         /proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}
 
 # 9) cleanup ${bgout}
-        
+        printf "bedToBw:   Removing temp files\n"
+        rm sort_temp.bed
+        rm slop_temp.bed
         rm ${bgout}
         
         printf "bedToBw:   END\n"
+        
+
+
