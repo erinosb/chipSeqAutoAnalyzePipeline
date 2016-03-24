@@ -2,7 +2,7 @@
 
 This is the basic pipeline I use for analyzing multiplexed ChIP-seq datasets
 
-There are two steps to execut in the analysis:
+There are two steps to execute in the analysis:
 
     chipSeqAnalyzeStep1.sh
     
