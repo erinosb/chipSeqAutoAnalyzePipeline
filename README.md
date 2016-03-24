@@ -20,13 +20,13 @@ See the instructions for each of these programs below.
 ### USAGE
 ```
    Split and Align Mode:
-       bash chipSeqAnalyzeStep1.sh \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+       bash chipSeqAnalyzeStep1.sh [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Split Only Mode:
-       bash chipSeqAnalyzeStep1.sh --splitOnly \[options\] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
+       bash chipSeqAnalyzeStep1.sh --splitOnly [options] --multi <inputFile.txt> --bar <barcodeIndexFile.txt>
    OR
    Align Only Mode:
-       bash chipSeqAnalyzeStep1.sh --alignOnly \[options\] <input1.fastq> input2.fastq
+       bash chipSeqAnalyzeStep1.sh --alignOnly [options] <input1.fastq> input2.fastq
 ```
 
 ### MODES
