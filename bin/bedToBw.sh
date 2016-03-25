@@ -17,7 +17,7 @@ if [ $# -lt 5 ] # '-lt' stands for less than
 then
 	echo -e "\t`basename $0` version 1"
 	echo -e "\tby Erin Nishimura; all rights reserved"
-  	echo -e "\n\tUsage: `basename $0` <file.bed> <extension> <Genome> -c/n -r/bg"
+  	echo -e "\n\tUsage: `basename $0` <file.bed> <extension> <Genome> -c/n -r/bg/bw"
 	echo -e "\n\t<hits.bed>\tBowtie output. Quality is not considered"
 	echo -e "\t<extension>\tDesired final fragment size in bp."
 	echo -e "\t<genome>\tSorted chromosome length file."
