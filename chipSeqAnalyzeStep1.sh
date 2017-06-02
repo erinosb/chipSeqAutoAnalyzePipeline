@@ -1,4 +1,5 @@
-#! /bin/sh/
+#! /bin/bash
+CONFIGFILENAME=step1.config
 ##################################################################################################
 
 #####################  HEADER  ###################################################################
@@ -103,18 +104,6 @@
 #
 #
 #
-##################################################################################################
-
-#####################   SET VARIABLES   ##########################################################
-solexa_primer_adapter="/proj/dllab/Erin/sequences/solexa-library-seqs.fasta"    #tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this
-                                                                                  #variable to a path pointing to that file.
-#bowtie2path="/proj/dllab/Erin/ce10/from_ucsc/seq/genome_bt2/ce10"               #bowtie2 know where the bowtie2 index files are located. Set this varaible to the path and root
-                                                                                  #name of those index files.
-                                                                                  #Also, the genome sequence (a .fa file) also needs to be in that same directory.
-bowtie1path="/proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10"
-chromlength="/proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt"               #bedToBw.sh needs to know how long each chromosome is
-##################################################################################################
-
 #####################  USAGE   ###################################################################
 
 usage="  chipSeqAnalyzeStep1.sh
@@ -212,11 +201,66 @@ DEPENDENCIES
 DATE=$(date +"%Y-%m-%d_%H%M")
 dated_log=${DATE}.log
 commands_log=${DATE}_commands.log
+LOGCMDS="tee -a $commands_log"
+LOGDATE="tee -a $dated_log"
+LOGBOTH="tee -a $dated_log $commands_log"
+
 
 printf "\n\n"  | tee -a $dated_log $commands_log
 echo "######################################################################"  | tee -a $dated_log $commands_log
 printf $(date +"%Y-%m-%d_%H:%M")"\tRUNNING\n" | tee -a $dated_log $commands_log
 echo "######################################################################"  | tee -a $dated_log $commands_log
+
+# Source a config file to set variables 
+# The CONFIGFILENAME is set at the top of the calling script
+if [ ! -e $CONFIGFILENAME ]
+then 
+    echo "FATAL: $CONFIGFILENAME NOT FOUND" | $LOGBOTH
+    exit 1
+else
+    echo ".............................using $CONFIGFILENAME" | $LOGBOTH
+    echo
+    source $CONFIGFILENAME
+    if [ $? != 0 ]
+    then
+        echo "FATAL: error loading $CONFIGFILENAME" | $LOGBOTH
+        exit 1
+    fi
+fi
+
+# check for the variables
+vars_ok=TRUE
+if [ -z "$solexa_primer_adapter" ]
+then
+    vars_ok=FALSE
+    echo "ERROR: \$solexa_primer_adapter unset. tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this variable to a path specifying that file." | $LOGBOTH
+
+elif [ -z "$bowtiepath" ]
+then
+    vars_ok=FALSE
+    echo "ERROR: bowtie needs the index files. Set this variable to the path and root name of those index files." | $LOGBOTH
+elif [ -z "$chromlength" ]
+then
+    vars_ok=FALSE
+    echo "ERROR: bedToBw.sh needs to know how long each chromosome is." | $LOGBOTH
+    else
+        if [ ! -e $chromlength ]
+        then
+            echo "ERROR: \$chromlength=$chromlength but the file is not there."| $LOGBOTH
+            vars_ok=FALSE
+        else
+            echo "chromlength is set to $chromlength"| $LOGBOTH
+        fi
+fi
+
+# Fail the whole thing if anything failed above
+
+if ! $vars_ok
+then
+    echo "FATAL: One or more configuration variables are not set or are incorrect." | $LOGBOTH
+    exit 1
+fi
+
 
 
 printf $(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
@@ -225,9 +269,15 @@ echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command:\n\t$0 $*\n" | tee -a 
 
 printf "This pipeline requires the following modules: samtools, bedtools, bowtie, fastqc"
 
-printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
-source /nas02/apps/Modules/default/init/bash
-module list  2>&1 | tee -a $dated_log $commands_log
+# for running on linux, Erin has a "module" command that checks/lists samtools, bedtools, etc.
+
+if hash module 2> /dev/null
+then
+    printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
+    source /nas02/apps/Modules/default/init/bash
+    hash module list  2>&1 | tee -a $dated_log $commands_log
+fi
+
 printf "\n" | tee -a $dated_log $commands_log
 
 
