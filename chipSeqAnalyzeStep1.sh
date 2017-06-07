@@ -280,6 +280,15 @@ fi
 
 printf "\n" | tee -a $dated_log $commands_log
 
+# need to run gzcat, not zcat, on my mac
+zcat=zcat
+os=$(uname)
+if [ $os == "Darwin" ]
+then
+    zcat=gzcat
+fi
+ 
+
 
 #Set options
 alignonly="notcalled"
@@ -442,8 +451,8 @@ then
     if [[ ${multi} == *.gz ]]
     then
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\tFASTX Toolkit: Splitting multiplexed fastq file based on barcode indices.\n\t"
-        echo "zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
-        zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
+        echo "$zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
+        $zcat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol | tee -a $dated_log
     else
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\tFASTX Toolkit: Splitting multiplexed fastq file based on barcode indices.\n\t"
         echo "cat $multi | fastx_barcode_splitter.pl --bcfile $bar --prefix "" --suffix ".fastq" --bol" | tee -a $dated_log $commands_log
