@@ -524,7 +524,7 @@ if [[ $alignonly == "notcalled" && $splitonly == "notcalled" ]]
 then
     list=($(grep "\#" -v ${bar} | awk '{print $1}'))
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t\t" | tee -a $dated_log $commands_log
-    printf "Will Chip-seq analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
+    printf "Chip-seq will analyze the following .fastq/.txt files:\n" | tee -a $dated_log $commands_log
     for i in "${list[@]}"
         do
             echo ${i}".fastq" | tee -a $dated_log  $commands_log
