@@ -229,6 +229,7 @@ else
 fi
 
 # check for the variables
+# TODO: needs a check to see if the variables are set to files that exist.
 vars_ok=TRUE
 if [ -z "$solexa_primer_adapter" ]
 then
