@@ -270,13 +270,13 @@ echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command:\n\t$0 $*\n" | tee -a 
 
 printf "This pipeline requires the following modules: samtools, bedtools, bowtie, fastqc"
 
-# for running on linux, Erin has a "module" command that checks/lists samtools, bedtools, etc.
+# for running on a linux cluster, Erin has a "module" command that checks/lists samtools, bedtools, etc.
 
 if hash module 2> /dev/null
 then
     printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
     source /nas02/apps/Modules/default/init/bash
-    hash module list  2>&1 | tee -a $dated_log $commands_log
+    module list  2>&1 | tee -a $dated_log $commands_log
 fi
 
 printf "\n" | tee -a $dated_log $commands_log
