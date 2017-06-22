@@ -77,7 +77,7 @@ CONFIGFILENAME=step1.config
 #   -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
 #   --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
 #                                       /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
-#   --bowtiepath </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
+#   --BOWTIEPATH </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
 #                                       /proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10
 #   --primers <file.txt>             A .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
 #                                      remove these sequences as a quality control step. Default =
@@ -180,7 +180,7 @@ OPTIONS
    -p <n>                           Runs bowtie in parallel mode. Values accepted are 1 - 8. Suggest 2 - 4. Make sure to match this number with bsub -n <n>. Default = 1
    --chrlength <file.txt>           A file specifying how long each chromsome is. The bedToBw.sh program needs this information for read extension. Default =
                                        /proj/dllab/Erin/ce10/from_ucsc/seq/chr_length_ce10.txt
-   --bowtiepath </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
+   --BOWTIEPATH </path/>            The path location of where the .bwa files are contained. Required by bowtie. Default =
                                        /proj/dllab/Erin/ce10/from_ucsc/seq/prev_versions_bowtie/genome_bwa/ce10
    --primers <file.txt>             A .fastq file that contains a list of all the primer and adpater sequences used in library prep and sequencing. Tagdust
                                       remove these sequences as a quality control step. Default =
@@ -228,30 +228,36 @@ else
     fi
 fi
 
-# check for the variables
-# TODO: needs a check to see if the variables are set to files that exist.
+# check for the variables in config file
 vars_ok=TRUE
-if [ -z "$solexa_primer_adapter" ]
+if [ -z "$SOLEXA_PRIMER_ADAPTER" ]
 then
     vars_ok=FALSE
-    echo "ERROR: \$solexa_primer_adapter unset. tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences. Set this variable to a path specifying that file." | $LOGBOTH
-
-elif [ -z "$bowtiepath" ]
+    echo "ERROR: \$SOLEXA_PRIMER_ADAPTER unset. tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences." | $LOGBOTH
+elif [ ! -s $SOLEXA_PRIMER_ADAPTER ]
+then
+    vars_ok=FALSE
+    echo "ERROR: \$SOLEXA_PRIMER_ADAPTER->$SOLEXA_PRIMER_ADAPTER DOESN'T EXIST or is ZERO SIZE"
+fi
+if [ -z "$BOWTIEPATH" ]
 then
     vars_ok=FALSE
     echo "ERROR: bowtie needs the index files. Set this variable to the path and root name of those index files." | $LOGBOTH
-elif [ -z "$chromlength" ]
+elif [ ! -s "$BOWTIEPATH" ]
+    vars_ok=FALSE
+    echo "ERROR: \$BOWTIEPATH->$BOWTIEPATH DOESN'T EXIST or is ZERO SIZE"
+fi
+
+if [ -z "$CHROMLENGTH" ]
 then
     vars_ok=FALSE
-    echo "ERROR: bedToBw.sh needs to know how long each chromosome is." | $LOGBOTH
-    else
-        if [ ! -e $chromlength ]
-        then
-            echo "ERROR: \$chromlength=$chromlength but the file is not there."| $LOGBOTH
-            vars_ok=FALSE
-        else
-            echo "chromlength is set to $chromlength"| $LOGBOTH
-        fi
+    echo "ERROR: \$CHROMLENGTH unset. bedToBw.sh needs to know how long each chromosome is." | $LOGBOTH
+elif [ ! -e $CHROMLENGTH ]
+then
+    echo "ERROR: \$CHROMLENGTH=$CHROMLENGTH but the file is not there."| $LOGBOTH
+    vars_ok=FALSE
+else
+    echo "CHROMLENGTH is set to $CHROMLENGTH"| $LOGBOTH
 fi
 
 # Fail the whole thing if anything failed above
@@ -271,13 +277,13 @@ echo -e "INITIATED autoAnalyzeChipseq_v9.sh using command:\n\t$0 $*\n" | tee -a 
 printf "This pipeline requires the following modules: samtools, bedtools, bowtie, fastqc"
 
 # for running on a linux cluster, Erin has a "module" command that checks/lists samtools, bedtools, etc.
-
-if hash module 2> /dev/null
-then
-    printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
-    source /nas02/apps/Modules/default/init/bash
-    module list  2>&1 | tee -a $dated_log $commands_log
-fi
+# This section will fail. Should it be replaced with check_environ.sh?
+#if hash module 2> /dev/null
+#then
+#    printf "\nThis pipeline will run with the following modules:\n" | tee -a $dated_log $commands_log ##Doesn't work
+#    source /nas02/apps/Modules/default/init/bash
+#    module list  2>&1 | tee -a $dated_log $commands_log
+#fi
 
 printf "\n" | tee -a $dated_log $commands_log
 
@@ -349,15 +355,15 @@ do
         cleanoff="called"
         ;;
         --primers) shift;
-        solexa_primer_adapter=${1:--}
+        SOLEXA_PRIMER_ADAPTER=${1:--}
         shift
         ;;
-        --bowtiepath) shift;
+        --BOWTIEPATH) shift;
         bowtie1path=${1:--}
         shift
         ;;
         --chrlength) shift;
-        chromlength=${1:--}
+        CHROMLENGTH=${1:--}
         shift
         ;;
     esac
@@ -624,7 +630,7 @@ do
         $cmd1  2>&1 | tee -a $dated_log
         
         #2) tagdust
-        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$opdpath$trimfile
+        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$SOLEXA_PRIMER_ADAPTER" "$opdpath$trimfile
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         echo -e "Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
         $cmd2  2>&1 | tee -a $dated_log
@@ -642,7 +648,7 @@ do
         $cmd1  2>&1 | tee -a $dated_log
         
         #2) tagdust
-        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$j
+        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$SOLEXA_PRIMER_ADAPTER" "$j
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         echo -e "Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
         $cmd2  2>&1 | tee -a $dated_log
@@ -652,7 +658,7 @@ do
     then
         echo "Running in alignOnly mode."
         
-        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$solexa_primer_adapter" "$j
+        cmd2="tagdust -q -f 0.001 -s -a "$opdpath"2_"$i"_artifact.fastq -o "$opdpath$cleanfile" "$SOLEXA_PRIMER_ADAPTER" "$j
         printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
         echo -e "Tagdust: Removing adapter and primer sequences from $trimfile to make $cleanfile using command:\n\t$cmd2" | tee -a $dated_log $commands_log
         $cmd2  2>&1 | tee -a $dated_log        
@@ -714,7 +720,7 @@ do
     #8) bedToBw.sh: convert .bed -> .bw
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     inputbedfile="${i}_opd/7_${i}.bed"
-    cmd8="bash bin/bedToBw.sh $inputbedfile $extension $chromlength -n -bw"
+    cmd8="bash bin/bedToBw.sh $inputbedfile $extension $CHROMLENGTH -n -bw"
     echo -e "bedToBw:  Converting $bed_file to $bw_file using command:\n\t$cmd8" | tee -a $dated_log $commands_log
     eval $cmd8 2>&1 | tee -a $dated_log
     mv "${i}_opd/7_${i}x${extension}n.bw" "${i}_opd/8_${i}x${extension}n.bw" 2>&1 | tee -a $dated_log
