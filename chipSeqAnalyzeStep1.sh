@@ -228,33 +228,43 @@ else
     fi
 fi
 
+# ANSI escape codes to be used with echo -e
+RED='\033[0;31m'
+BLACK='\033[0;30m'
+
 # check for the variables in config file
 vars_ok=TRUE
+complain_str="${RED}DOESN'T EXIST or is ZERO SIZE${BLACK}"
+ERROR="${RED}ERROR${BLACK}"
+FATAL="${RED}FATAL${BLACK}"
+
 if [ -z "$SOLEXA_PRIMER_ADAPTER" ]
 then
     vars_ok=FALSE
-    echo "ERROR: \$SOLEXA_PRIMER_ADAPTER unset. tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences." | $LOGBOTH
+    echo -e "ERROR: \$SOLEXA_PRIMER_ADAPTER unset. tagdust needs a .fasta file that contains a list of all the solexa primer and adapter sequences." | $LOGBOTH
 elif [ ! -s $SOLEXA_PRIMER_ADAPTER ]
 then
     vars_ok=FALSE
-    echo "ERROR: \$SOLEXA_PRIMER_ADAPTER->$SOLEXA_PRIMER_ADAPTER DOESN'T EXIST or is ZERO SIZE"
+    echo -e "$ERROR: \$SOLEXA_PRIMER_ADAPTER->\`$SOLEXA_PRIMER_ADAPTER' $complain_str" | $LOGBOTH
 fi
+
 if [ -z "$BOWTIEPATH" ]
 then
     vars_ok=FALSE
-    echo "ERROR: bowtie needs the index files. Set this variable to the path and root name of those index files." | $LOGBOTH
-elif [ ! -s "$BOWTIEPATH" ]
+    echo -e "$ERROR: bowtie needs the index files. Set this variable to the path and root name of those index files." | $LOGBOTH
+elif [ ! -s $BOWTIEPATH ]
+then
     vars_ok=FALSE
-    echo "ERROR: \$BOWTIEPATH->$BOWTIEPATH DOESN'T EXIST or is ZERO SIZE"
+    echo -e "$ERROR: \$BOWTIEPATH->\`$BOWTIEPATH' $complain_str" | $LOGBOTH
 fi
 
 if [ -z "$CHROMLENGTH" ]
 then
     vars_ok=FALSE
-    echo "ERROR: \$CHROMLENGTH unset. bedToBw.sh needs to know how long each chromosome is." | $LOGBOTH
+    echo -e "$ERROR: \$CHROMLENGTH unset. bedToBw.sh needs to know how long each chromosome is." | $LOGBOTH
 elif [ ! -e $CHROMLENGTH ]
 then
-    echo "ERROR: \$CHROMLENGTH=$CHROMLENGTH but the file is not there."| $LOGBOTH
+    echo -e "$ERROR: \$CHROMLENGTH->\`$CHROMLENGTH' $complain_str"| $LOGBOTH
     vars_ok=FALSE
 else
     echo "CHROMLENGTH is set to $CHROMLENGTH"| $LOGBOTH
@@ -262,9 +272,9 @@ fi
 
 # Fail the whole thing if anything failed above
 
-if ! $vars_ok
+if [ $vars_ok == FALSE ]
 then
-    echo "FATAL: One or more configuration variables are not set or are incorrect." | $LOGBOTH
+    echo -e "$FATAL: One or more configuration variables are not set or are incorrect." | $LOGBOTH
     exit 1
 fi
 
