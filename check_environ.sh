@@ -8,6 +8,9 @@ RED='\033[0;31m'
 BLACK='\033[0;30m'
 
 # emoji
+ANGER='\U1F4A2'
+HOPEFUL='\U1F91E'
+THINKING='\U1F914'
 SMILEY='\U1F600'
 CRYING='\U1F62D'
 FEARFUL='\U1F628'
@@ -62,9 +65,16 @@ check_execution() {
     return $retval
 }
 
-for PROG in bowtie bowtie2 macs2;
+echo "Your PATH is:"
+echo -e "\t$PATH" | sed 's/:/\n\t/g'
+
+echo "Your LD_LIBRARY_PATH is:"
+echo -e "\t$LD_LIBRARY_PATH" | sed 's/:/\n\t/g'
+
+# all the programs that can be checked with --version
+for PROG in bowtie bowtie2 macs2 tagdust bedtools samtools;
 do
-    echo "================ $PROG =============================================================="
+    echo -e "${HOPEFUL} ================ $PROG ============================================================== "
     if check_execution $PROG --version
     then
         echo -e "$PROG PASSED. ${SMILEY}"
