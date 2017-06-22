@@ -89,7 +89,7 @@ do
     chk $PROG -version
 done
 # --version
-for PROG in bowtie bowtie2 macs2 tagdust bedtools samtools;
+for PROG in bowtie bowtie2 macs2 tagdust bedtools samtools fastqc;
 do
     chk $PROG --version
 done
