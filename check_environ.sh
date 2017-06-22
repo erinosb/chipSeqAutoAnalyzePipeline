@@ -64,6 +64,18 @@ check_execution() {
 
     return $retval
 }
+chk() {
+    ret=1
+    echo -e "${HOPEFUL} ================ $PROG ============================================================== "
+    if check_execution $1 $2
+    then
+        echo -e "$PROG PASSED. ${SMILEY}"
+    else
+        echo -e "$PROG FAILED ${FEARFUL}"
+        ret=0
+    fi
+    return $ret
+}
 
 echo "Your PATH is:"
 echo -e "\t$PATH" | sed 's/:/\n\t/g'
@@ -71,14 +83,15 @@ echo -e "\t$PATH" | sed 's/:/\n\t/g'
 echo "Your LD_LIBRARY_PATH is:"
 echo -e "\t$LD_LIBRARY_PATH" | sed 's/:/\n\t/g'
 
-# all the programs that can be checked with --version
+# -version
+for PROG in java;
+do
+    chk $PROG -version
+done
+# --version
 for PROG in bowtie bowtie2 macs2 tagdust bedtools samtools;
 do
-    echo -e "${HOPEFUL} ================ $PROG ============================================================== "
-    if check_execution $PROG --version
-    then
-        echo -e "$PROG PASSED. ${SMILEY}"
-    else
-        echo -e "$PROG FAILED ${FEARFUL}"
-    fi
+    chk $PROG --version
 done
+
+
