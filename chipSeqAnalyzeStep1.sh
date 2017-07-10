@@ -213,17 +213,30 @@ echo "######################################################################"  |
 
 # Source a config file to set variables 
 # The CONFIGFILENAME is set at the top of the calling script
-if [ ! -e $CONFIGFILENAME ]
+real_path() {
+    echo "$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")"
+}
+calling_script=$(real_path $0)
+calling_dir=$(dirname $calling_script)
+if [ -e $CONFIGFILENAME ]
+then
+    configpath=$CONFIGFILENAME
+elif [ -e $calling_dir/$CONFIGFILENAME ]
+then
+    configpath=$calling_dir/$CONFIGFILENAME
+fi
+
+if [ ! -e $configpath ]
 then 
-    echo "FATAL: $CONFIGFILENAME NOT FOUND" | $LOGBOTH
+    echo "FATAL: $configpath NOT FOUND" | $LOGBOTH
     exit 1
 else
-    echo ".............................using $CONFIGFILENAME" | $LOGBOTH
+    echo ".............................using $configpath" | $LOGBOTH
     echo
-    source $CONFIGFILENAME
+    source $configpath
     if [ $? != 0 ]
     then
-        echo "FATAL: error loading $CONFIGFILENAME" | $LOGBOTH
+        echo "FATAL: error loading $configpath" | $LOGBOTH
         exit 1
     fi
 fi
@@ -322,7 +335,7 @@ list=$@
 #Check for options and input:
 if [ -z "$1" ]
   then
-    echo "ERROR: No options or input files supplied:" | tee -a $dated_log $commands_log
+    echo -e "$ERROR: No options or input files supplied:" | tee -a $dated_log $commands_log
     echo "$usage"  | tee -a $dated_log $commands_log
     exit
 fi
@@ -368,8 +381,8 @@ do
         SOLEXA_PRIMER_ADAPTER=${1:--}
         shift
         ;;
-        --BOWTIEPATH) shift;
-        bowtie1path=${1:--}
+        --bowtiepath) shift;
+        BOWTIEPATH=${1:--}
         shift
         ;;
         --chrlength) shift;
@@ -380,6 +393,13 @@ do
 done
 
 #Check for errors. If split is to be performed, there should be a multi file and a bar file:
+if [ -e $multi ]
+    then
+    echo "using --multi: $multi"
+else
+    echo "multi not found: \`$multi'"
+    exit 1
+fi
 
 #Report that splitonly mode was called. Check for errors if splitonly mode is called.
 if [[ $splitonly == "called" ]]
@@ -388,6 +408,7 @@ then
     printf "\nFILE TO SPLIT IS: $multi" | tee -a $dated_log $commands_log
     printf "\nBARCODE FILE IS: $bar" | tee -a $dated_log $commands_log
     
+    # TODO: this fails to work, as a different positional parameter will be stored in this variable
     if [[ $multi == "undefined" ]]
     then
         printf "\n" | tee -a $dated_log $commands_log
@@ -396,6 +417,7 @@ then
         exit
     fi
     
+    # TODO: this fails to work, as a different positional parameter will be stored in this variable
     if [[ $bar == "undefined" ]]
     then
         printf "\n" | tee -a $dated_log $commands_log
@@ -444,6 +466,10 @@ then
         exit
     fi
 fi
+
+### grinding halt ###
+#echo -e "\nEnding the program here."
+#exit 0
 
 ######################
 #If splitting needs to happen, un-multiplex using fastx barcode splitter [alignOnly == "notcalled"]
@@ -605,7 +631,8 @@ do
     bed_file="7_${i}.bed"
     bw_file="8_${i}x${extension}n.bw"
     
-    
+
+
     
     
     printf "\n\n"  | tee -a $dated_log $commands_log
@@ -694,7 +721,7 @@ do
     
     
     #4) bowtie
-    cmd4="bowtie -q -S --nomaqround -m 1 -p $parallel --best --chunkmbs 200 --seed 123 $bowtie1path $opdpath$cleanfile $opdpath$samfile"
+    cmd4="bowtie -q -S --nomaqround -m 1 -p $parallel --best --chunkmbs 200 --seed 123 $BOWTIEPATH $opdpath$cleanfile $opdpath$samfile"
     printf "\n\n"$(date +"%Y-%m-%d_%H:%M")"\t" | tee -a $dated_log $commands_log
     echo -e "Bowtie: Aligning $cleanfile to the genome using command below. Output $samfile\n\t$cmd4" | tee -a $dated_log $commands_log
     $cmd4  2>&1 | tee -a $dated_log $opdpath$metrics
