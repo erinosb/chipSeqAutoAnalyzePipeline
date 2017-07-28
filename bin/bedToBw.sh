@@ -12,6 +12,7 @@
 # April 20, 2015 -- Updated to accommodate a .bed file.
 
     printf "bedToBw:   START\n"
+
     
 if [ $# -lt 5 ] # '-lt' stands for less than 
 then
@@ -24,9 +25,20 @@ then
 	echo -e "\t-c/n\t\tBase count (-c) or coverage-normalized base count (-n)."
 	echo -e "\t-r/bg/bw\t\tOutput is read length only or bedgraph."
 	echo -e "\n\tstdout not available\n"
-	echo -e "\n\tRequires bedtools preinstalled\n"
+	echo -e "\n\tRequires bedtools to be preinstalled."
+    hash bedtools || echo ".........bedtools is NOT installed."
+	echo -e "\tRequires UCSC tools to be preinstalled.\n"
+    hash bedGraphToBigWig || echo "UCSC tools is NOT installed."
 	exit 
 fi
+
+# enforce dependencies
+hash bedtools || { echo "bedtools is NOT installed."; exit 1; }
+hash bedGraphToBigWig || { echo "bedtools is NOT installed."; exit 1; }
+DEBUG_SCRIPTNAME=$(basename $0)
+# ANSI escape codes to be used with echo -e
+RED='\033[0;31m'
+BLACK='\033[0;30m'
 
 # USAGE:
 # $0 function name
@@ -38,13 +50,16 @@ fi
 
 
 
+
 # 1) Determine output file names
 	F=$1
 	seed="${F%%.bed}"	
 	if [ $4 = "-c" ]; then	
+        echo -e "$RED$DEBUG_SCRIPTNAME: using -c$BLACK"
 		bgout="$seed"x"$2"c.bg
 		bwout="$seed"x"$2"c.bw
 	elif [ $4 = "-n" ]; then	
+        echo -e "$RED$DEBUG_SCRIPTNAME: using -n$BLACK"
 		bgout="$seed"x"$2"n.bg
 		bwout="$seed"x"$2"n.bw
 	else 
@@ -57,7 +72,13 @@ fi
 	
         
 # 2) Get read length. Get this from the wc of the input bed file ($1)
-	rlength=$(head $1 -n 1 | awk '{print($3-$2)}') 
+	rlength=$(head -n 1 $1 | awk '{print($3-$2)}') 
+    if [ ! $? ]
+    then
+        echo -e "$RED$DEBUG_SCRIPT: there was a problem, failing$BLACK"
+        exit 1
+    
+    fi
 	
 	if [ $5 = "-r" ]; then
 		echo -e "bedToBw:   Here is the read length:" $rlength
@@ -116,9 +137,10 @@ fi
 # 8) Convert bedgraph to a bigwig with bedGraphToBigWig:
         printf "bedToBw:   Converting to bigwig\n"
         
-        cmd4="/proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}"
+        cmd4="bedGraphToBigWig ${bgout} ${3} ${bwout}"
         echo -e "\t\t$cmd4"
-        /proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}
+        #/proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}
+        bedGraphToBigWig ${bgout} ${3} ${bwout}
 
 # 9) cleanup ${bgout}
         printf "bedToBw:   Removing temp files\n"
