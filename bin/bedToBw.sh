@@ -34,7 +34,7 @@ fi
 
 # enforce dependencies
 hash bedtools || { echo "bedtools is NOT installed."; exit 1; }
-hash bedGraphToBigWig || { echo "bedtools is NOT installed."; exit 1; }
+hash bedGraphToBigWig || { echo "bedGraphToBigWig is NOT installed."; exit 1; }
 DEBUG_SCRIPTNAME=$(basename $0)
 # ANSI escape codes to be used with echo -e
 RED='\033[0;31m'
@@ -119,19 +119,22 @@ BLACK='\033[0;30m'
         #printf "bedToBw:   Bed file extend by $n bases.\n"
         
         printf "bedToBw:   Sorting\n"
-	cmd1="bedtools sort -i ${1} > sort_temp.bed"
+        tmp_sort_bed="sort_temp_$1"
+
+	    cmd1="bedtools sort -i ${1} > $tmp_sort_bed"
         echo -e "\t\t$cmd1"
-        bedtools sort -i ${1} > sort_temp.bed
+        eval $cmd1
         
         printf "bedToBw:   Extending reads by ${n} bases\n"
-        cmd2="bedtools slop -s -i sort_temp.bed -g ${3} -l 0 -r ${n} > slop_temp.bed"
+        tmp_slop_bed="slop_temp_$1"
+        cmd2="bedtools slop -s -i $tmp_sort_bed -g ${3} -l 0 -r ${n} > $tmp_slop_bed"
         echo -e "\t\t$cmd2"
-        bedtools slop -s -i sort_temp.bed -g ${3} -l 0 -r ${n} > slop_temp.bed
+        eval $cmd2
         
         printf "bedToBw:   Converting to bedgraph\n"
-        cmd3="bedtools genomecov -bg -i slop_temp.bed -g ${3} -scale ${scale} > ${bgout}"
+        cmd3="bedtools genomecov -bg -i $tmp_slop_bed -g ${3} -scale ${scale} > ${bgout}"
         echo -e "\t\t$cmd3"
-        bedtools genomecov -bg -i slop_temp.bed -g ${3} -scale ${scale} > ${bgout}
+        eval $cmd3
         
 
 # 8) Convert bedgraph to a bigwig with bedGraphToBigWig:
@@ -139,13 +142,12 @@ BLACK='\033[0;30m'
         
         cmd4="bedGraphToBigWig ${bgout} ${3} ${bwout}"
         echo -e "\t\t$cmd4"
-        #/proj/.test/roach/FAIRE/bin/bedGraphToBigWig ${bgout} ${3} ${bwout}
-        bedGraphToBigWig ${bgout} ${3} ${bwout}
+        eval $cmd4
 
 # 9) cleanup ${bgout}
         printf "bedToBw:   Removing temp files\n"
-        rm sort_temp.bed
-        rm slop_temp.bed
+        rm $tmp_sort_bed
+        rm $tmp_slop_bed
         rm ${bgout}
         
         printf "bedToBw:   END\n"
